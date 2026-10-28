@@ -1,0 +1,34 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/analytics/layout,_N_T_/analytics/page,_N_T_/analytics"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/analytics/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 160,
+            "slots": null
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/d77a43e6c7478afb73ce965cc529ae459ecbaa3657f42eae42a84ae6657674a1/$/analytics",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/analytics/page"
+    },
+    "isFallback": false
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "/_global-error/page": "app/_global-error/page.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/analytics/page": "app/analytics/page.js",
+  "/api/agents/route": "app/api/agents/route.js",
+  "/api/orders/route": "app/api/orders/route.js",
+  "/api/products/route": "app/api/products/route.js",
+  "/api/settings/route": "app/api/settings/route.js",
+  "/api/stream/route": "app/api/stream/route.js",
+  "/api/tasks/route": "app/api/tasks/route.js",
+  "/dashboard/page": "app/dashboard/page.js",
+  "/orders/page": "app/orders/page.js",
+  "/page": "app/page.js",
+  "/products/page": "app/products/page.js",
+  "/settings/page": "app/settings/page.js"
+}

@@ -1,0 +1,16 @@
+{
+  "/_global-error/page": "/_global-error",
+  "/_not-found/page": "/_not-found",
+  "/analytics/page": "/analytics",
+  "/api/agents/route": "/api/agents",
+  "/api/orders/route": "/api/orders",
+  "/api/products/route": "/api/products",
+  "/api/settings/route": "/api/settings",
+  "/api/stream/route": "/api/stream",
+  "/api/tasks/route": "/api/tasks",
+  "/dashboard/page": "/dashboard",
+  "/orders/page": "/orders",
+  "/page": "/",
+  "/products/page": "/products",
+  "/settings/page": "/settings"
+}
