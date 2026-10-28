@@ -44,7 +44,7 @@ export abstract class BaseAgent {
     })
   }
 
-  private updateProgress(taskId: string, progress: number, message: string) {
+  protected updateProgress(taskId: string, progress: number, message: string) {
     run('UPDATE tasks SET progress = ? WHERE id = ?', progress, taskId)
     emitAgentEvent({
       agentId: this.id,

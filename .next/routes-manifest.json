@@ -54,6 +54,36 @@
       "namedRegex": "^/api/agents(?:/)?$"
     },
     {
+      "page": "/api/etsy/auth",
+      "regex": "^/api/etsy/auth(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/etsy/auth(?:/)?$"
+    },
+    {
+      "page": "/api/etsy/callback",
+      "regex": "^/api/etsy/callback(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/etsy/callback(?:/)?$"
+    },
+    {
+      "page": "/api/etsy/listings",
+      "regex": "^/api/etsy/listings(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/etsy/listings(?:/)?$"
+    },
+    {
+      "page": "/api/etsy/orders",
+      "regex": "^/api/etsy/orders(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/etsy/orders(?:/)?$"
+    },
+    {
+      "page": "/api/etsy/shop",
+      "regex": "^/api/etsy/shop(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/etsy/shop(?:/)?$"
+    },
+    {
       "page": "/api/orders",
       "regex": "^/api/orders(?:/)?$",
       "routeKeys": {},
