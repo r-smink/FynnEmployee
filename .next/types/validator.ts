@@ -224,6 +224,46 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
+// Validate ../../src/app/api/printful/catalog/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/printful/catalog">> = Specific
+  const handler = {} as typeof import("../../src/app/api/printful/catalog/route.js")
+  type __Check = __IsExpected<typeof handler>
+  
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/api/printful/orders/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/printful/orders">> = Specific
+  const handler = {} as typeof import("../../src/app/api/printful/orders/route.js")
+  type __Check = __IsExpected<typeof handler>
+  
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/api/printful/store/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/printful/store">> = Specific
+  const handler = {} as typeof import("../../src/app/api/printful/store/route.js")
+  type __Check = __IsExpected<typeof handler>
+  
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/api/printful/webhook/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/printful/webhook">> = Specific
+  const handler = {} as typeof import("../../src/app/api/printful/webhook/route.js")
+  type __Check = __IsExpected<typeof handler>
+  
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../src/app/api/products/route.ts
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/api/products">> = Specific

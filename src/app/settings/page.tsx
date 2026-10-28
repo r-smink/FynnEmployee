@@ -27,7 +27,6 @@ const apiKeys: ApiKeyField[] = [
     description: 'Default: google/gemini-2.0-flash-001 (fast & cheap)',
     type: 'text',
   },
-  { label: 'Printful API Key', key: 'printful_api_key', placeholder: 'Enter your Printful API key...' },
 ]
 
 const etsyKeys: ApiKeyField[] = [
@@ -82,6 +81,11 @@ function SettingsContent() {
   const [etsyConnecting, setEtsyConnecting] = useState(false)
   const [etsyError, setEtsyError] = useState<string | null>(null)
 
+  // Printful state
+  const [printfulConnected, setPrintfulConnected] = useState(false)
+  const [printfulStore, setPrintfulStore] = useState<{ id: number; name: string; type: string; currency: string } | null>(null)
+  const [printfulChecking, setPrintfulChecking] = useState(false)
+
   useEffect(() => {
     // Check URL params for Etsy callback results
     const connected = searchParams.get('etsy_connected')
@@ -100,7 +104,31 @@ function SettingsContent() {
       setAiEnabled(data.ai_enabled === 'true')
     }).catch(() => {})
     fetchEtsyShop()
+    fetchPrintfulStore()
   }, [])
+
+  const fetchPrintfulStore = async () => {
+    try {
+      const res = await fetch('/api/printful/store')
+      const data = await res.json()
+      if (data.connected && data.store) {
+        setPrintfulConnected(true)
+        setPrintfulStore(data.store)
+      }
+    } catch {}
+  }
+
+  const testPrintfulConnection = async () => {
+    if (!values.printful_api_key) return
+    setPrintfulChecking(true)
+    await fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ printful_api_key: values.printful_api_key }),
+    })
+    await fetchPrintfulStore()
+    setPrintfulChecking(false)
+  }
 
   const fetchEtsyShop = async () => {
     try {
@@ -290,6 +318,65 @@ function SettingsContent() {
                   className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium hover:opacity-80"
                   style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
                   <ExternalLink className="w-3 h-3" /> Create Seller App
+                </a>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Printful Connection */}
+        <div className="glass-card p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <ShoppingBag className="w-4 h-4" style={{ color: 'var(--accent-green)' }} />
+            <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Printful (Dropshipping)</h3>
+          </div>
+
+          {printfulConnected && printfulStore ? (
+            <div className="flex items-center gap-4 p-4 rounded-lg" style={{ background: 'var(--bg-primary)' }}>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center"
+                style={{ background: 'rgba(74, 255, 158, 0.15)', color: 'var(--accent-green)' }}>
+                <ShoppingBag className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <h4 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{printfulStore.name}</h4>
+                  <span className="px-2 py-0.5 rounded-full text-xs font-medium"
+                    style={{ background: 'rgba(74, 255, 158, 0.15)', color: 'var(--accent-green)' }}>Connected</span>
+                </div>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                  {printfulStore.type} store &middot; {printfulStore.currency}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                Connect Printful for automatic print-on-demand fulfillment. Use a <strong>Private Token</strong> from your Printful dashboard.
+              </p>
+              <div>
+                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Printful API Token</label>
+                <input
+                  type="password"
+                  placeholder="Your Printful private token..."
+                  value={values.printful_api_key || ''}
+                  onChange={e => setValues(v => ({ ...v, printful_api_key: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                  style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                />
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={testPrintfulConnection}
+                  disabled={printfulChecking || !values.printful_api_key}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all hover:opacity-90 disabled:opacity-50"
+                  style={{ background: 'var(--accent-green)', color: '#0a0a0f' }}>
+                  {printfulChecking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
+                  {printfulChecking ? 'Checking...' : 'Connect Printful'}
+                </button>
+                <a href="https://www.printful.com/dashboard/developer/api" target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium hover:opacity-80"
+                  style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
+                  <ExternalLink className="w-3 h-3" /> Get API Token
                 </a>
               </div>
             </div>

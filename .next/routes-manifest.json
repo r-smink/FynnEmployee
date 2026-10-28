@@ -90,6 +90,30 @@
       "namedRegex": "^/api/orders(?:/)?$"
     },
     {
+      "page": "/api/printful/catalog",
+      "regex": "^/api/printful/catalog(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/printful/catalog(?:/)?$"
+    },
+    {
+      "page": "/api/printful/orders",
+      "regex": "^/api/printful/orders(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/printful/orders(?:/)?$"
+    },
+    {
+      "page": "/api/printful/store",
+      "regex": "^/api/printful/store(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/printful/store(?:/)?$"
+    },
+    {
+      "page": "/api/printful/webhook",
+      "regex": "^/api/printful/webhook(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/printful/webhook(?:/)?$"
+    },
+    {
       "page": "/api/products",
       "regex": "^/api/products(?:/)?$",
       "routeKeys": {},
