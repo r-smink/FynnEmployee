@@ -1,10 +1,5 @@
-import { Sidebar } from '@/components/layout/sidebar'
+import { AppShell } from '@/components/layout/app-shell'
 
 export default function AnalyticsLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="min-h-screen" style={{ background: 'var(--bg-primary)' }}>
-      <Sidebar />
-      <main className="ml-60">{children}</main>
-    </div>
-  )
+  return <AppShell>{children}</AppShell>
 }

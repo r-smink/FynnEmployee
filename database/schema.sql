@@ -132,7 +132,24 @@ CREATE TABLE IF NOT EXISTS messages (
     created_at      TEXT DEFAULT (datetime('now'))
 );
 
+-- Office rooms (isometric floor plan per shop; grid size lives in shop_settings office_cols/office_rows)
+CREATE TABLE IF NOT EXISTS rooms (
+    id          TEXT PRIMARY KEY,
+    shop_id     TEXT NOT NULL,
+    name        TEXT NOT NULL,
+    function    TEXT NOT NULL,
+    color       TEXT NOT NULL,
+    col         INTEGER NOT NULL,
+    row         INTEGER NOT NULL,
+    width       INTEGER NOT NULL DEFAULT 1,
+    depth       INTEGER NOT NULL DEFAULT 1,
+    agent_id    TEXT,
+    created_at  TEXT DEFAULT (datetime('now')),
+    updated_at  TEXT DEFAULT (datetime('now'))
+);
+
 -- Indexes
+CREATE INDEX IF NOT EXISTS idx_rooms_shop ON rooms(shop_id);
 CREATE INDEX IF NOT EXISTS idx_agents_shop ON agents(shop_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_shop ON tasks(shop_id, agent_id, status);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);

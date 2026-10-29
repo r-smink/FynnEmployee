@@ -38,6 +38,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ shopId: string; agentId: string }> }) {
   const { shopId, agentId } = await params
   run('DELETE FROM agents WHERE id = ? AND shop_id = ? AND is_custom = 1', agentId, shopId)
+  run('UPDATE rooms SET agent_id = NULL WHERE shop_id = ? AND agent_id = ?', shopId, agentId)
   engine.removeAgent(shopId, agentId)
   return NextResponse.json({ success: true })
 }

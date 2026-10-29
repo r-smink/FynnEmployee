@@ -1,17 +1,24 @@
 'use client'
 
 import { use, useState } from 'react'
+import { Plus, Trash2, Pencil, X, Loader2, Users } from 'lucide-react'
 import { Topbar } from '@/components/layout/topbar'
-import { useAgents } from '@/hooks/use-agents'
-import { Bot, Plus, Trash2, Edit3, X, Loader2 } from 'lucide-react'
+import { PageBody } from '@/components/layout/app-shell'
+import { AgentAvatar, AgentStatusPill } from '@/components/dashboard/agent-card'
+import { useAgents, type AgentData } from '@/hooks/use-agents'
+import { agentRole } from '@/lib/labels'
+
+const EMPTY_FORM = { name: '', role: '', description: '', color: '#8F39AC', customPrompt: '' }
 
 export default function AgentsPage({ params }: { params: Promise<{ shopId: string }> }) {
   const { shopId } = use(params)
   const { agents, loading, refresh } = useAgents(shopId)
   const [showCreate, setShowCreate] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [form, setForm] = useState({ name: '', role: '', description: '', color: '#8888aa', customPrompt: '' })
+  const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
+
+  const closeForm = () => { setShowCreate(false); setEditingId(null); setForm(EMPTY_FORM) }
 
   const createAgent = async () => {
     if (!form.name.trim()) return
@@ -22,14 +29,13 @@ export default function AgentsPage({ params }: { params: Promise<{ shopId: strin
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: form.name,
-          role: form.role || 'Custom Agent',
+          role: form.role || 'Custom-agent',
           description: form.description,
           color: form.color,
           customPrompt: form.customPrompt,
         }),
       })
-      setForm({ name: '', role: '', description: '', color: '#8888aa', customPrompt: '' })
-      setShowCreate(false)
+      closeForm()
       refresh()
     } catch {}
     setSaving(false)
@@ -49,23 +55,23 @@ export default function AgentsPage({ params }: { params: Promise<{ shopId: strin
           custom_prompt: form.customPrompt,
         }),
       })
-      setEditingId(null)
-      setForm({ name: '', role: '', description: '', color: '#8888aa', customPrompt: '' })
+      closeForm()
       refresh()
     } catch {}
     setSaving(false)
   }
 
   const deleteAgent = async (agentId: string) => {
-    if (!confirm('Delete this agent?')) return
+    if (!confirm('Deze agent verwijderen?')) return
     try {
       await fetch(`/api/shops/${shopId}/agents/${agentId}`, { method: 'DELETE' })
       refresh()
     } catch {}
   }
 
-  const startEdit = (agent: any) => {
+  const startEdit = (agent: AgentData & { custom_prompt?: string | null }) => {
     setEditingId(agent.id)
+    setShowCreate(false)
     setForm({
       name: agent.name,
       role: agent.role,
@@ -73,142 +79,109 @@ export default function AgentsPage({ params }: { params: Promise<{ shopId: strin
       color: agent.color,
       customPrompt: agent.custom_prompt || '',
     })
-    setShowCreate(false)
   }
 
   return (
     <>
-      <Topbar title="Agents" subtitle={`${agents.length} agents in workforce`} />
-      <div className="p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Agent Workforce</h3>
-          <button
-            onClick={() => { setShowCreate(!showCreate); setEditingId(null); setForm({ name: '', role: '', description: '', color: '#8888aa', customPrompt: '' }) }}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all hover:opacity-90"
-            style={{ background: 'var(--accent-green)', color: '#0a0a0f' }}>
-            <Plus className="w-4 h-4" /> Create Agent
+      <Topbar title="Agents" subtitle={`${agents.length} agents in je team`} />
+      <PageBody>
+        <div className="flex items-center justify-between mb-3.5">
+          <div className="flex items-center gap-[9px]">
+            <Users className="w-[19px] h-[19px]" style={{ color: 'var(--fyn-purple)' }} />
+            <h3 className="m-0 text-[17px] font-bold" style={{ color: 'var(--text-h)' }}>Team</h3>
+          </div>
+          <button className="fynn-btn" onClick={() => { closeForm(); setShowCreate(!showCreate) }}>
+            <Plus className="w-4 h-4" /> Agent aanmaken
           </button>
         </div>
 
-        {/* Create/Edit Form */}
         {(showCreate || editingId) && (
-          <div className="glass-card p-5 mb-6">
+          <div className="fynn-card p-[22px] mb-[18px]">
             <div className="flex items-center justify-between mb-4">
-              <h4 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                {editingId ? 'Edit Agent' : 'New Agent'}
-              </h4>
-              <button onClick={() => { setShowCreate(false); setEditingId(null) }}>
-                <X className="w-4 h-4" style={{ color: 'var(--text-secondary)' }} />
+              <h4 className="fynn-section-title">{editingId ? 'Agent bewerken' : 'Nieuwe agent'}</h4>
+              <button onClick={closeForm} className="cursor-pointer" aria-label="Sluiten">
+                <X className="w-4 h-4" style={{ color: 'var(--text-m)' }} />
               </button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Name</label>
-                <input type="text" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                  placeholder="Agent name..." className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                  style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }} />
+                <label className="fynn-label">Naam</label>
+                <input className="fynn-inp" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Naam van de agent…" />
               </div>
               <div>
-                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Role</label>
-                <input type="text" value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))}
-                  placeholder="e.g. Marketing Agent" className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                  style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }} />
+                <label className="fynn-label">Rol</label>
+                <input className="fynn-inp" value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} placeholder="bijv. Marketing-agent" />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Description</label>
-                <input type="text" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                  placeholder="What does this agent do?" className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                  style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }} />
+                <label className="fynn-label">Omschrijving</label>
+                <input className="fynn-inp" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Wat doet deze agent?" />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Custom Prompt (optional)</label>
-                <textarea value={form.customPrompt} onChange={e => setForm(f => ({ ...f, customPrompt: e.target.value }))}
-                  placeholder="Custom system prompt for this agent..."
-                  rows={3} className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none"
-                  style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }} />
+                <label className="fynn-label">Eigen prompt (optioneel)</label>
+                <textarea className="fynn-inp" rows={3} value={form.customPrompt} onChange={e => setForm(f => ({ ...f, customPrompt: e.target.value }))}
+                  placeholder="Eigen systeemprompt voor deze agent…" />
               </div>
               <div>
-                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Color</label>
-                <div className="flex items-center gap-2">
+                <label className="fynn-label">Kleur</label>
+                <div className="flex items-center gap-3">
                   <input type="color" value={form.color} onChange={e => setForm(f => ({ ...f, color: e.target.value }))}
-                    className="w-8 h-8 rounded cursor-pointer border-0" />
-                  <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{form.color}</span>
+                    className="w-11 h-11 rounded-lg cursor-pointer" style={{ border: '2px solid var(--input-border)', background: 'var(--input-bg)' }} />
+                  <code className="text-[12.5px]" style={{ color: 'var(--text-m)' }}>{form.color}</code>
                 </div>
               </div>
             </div>
-            <div className="mt-4 flex items-center gap-3">
-              <button
-                onClick={() => editingId ? updateAgent(editingId) : createAgent()}
-                disabled={saving || !form.name.trim()}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
-                style={{ background: 'var(--accent-blue)', color: 'white' }}>
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                {editingId ? 'Save Changes' : 'Create Agent'}
+            <div className="mt-[18px] flex items-center gap-2.5">
+              <button className="fynn-btn" disabled={saving || !form.name.trim()}
+                onClick={() => editingId ? updateAgent(editingId) : createAgent()}>
+                {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+                {editingId ? 'Wijzigingen opslaan' : 'Agent aanmaken'}
               </button>
-              <button onClick={() => { setShowCreate(false); setEditingId(null) }}
-                className="px-4 py-2 rounded-lg text-sm" style={{ color: 'var(--text-secondary)' }}>
-                Cancel
-              </button>
+              <button className="fynn-btn-ghost" onClick={closeForm}>Annuleren</button>
             </div>
           </div>
         )}
 
-        {/* Agent Grid */}
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="glass-card p-5 h-48 animate-pulse" />
-            ))}
+          <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))' }}>
+            {[...Array(6)].map((_, i) => <div key={i} className="fynn-card h-44 animate-pulse" />)}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {agents.map((agent: any) => (
-              <div key={agent.id} className="glass-card p-5">
+          <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))' }}>
+            {agents.map((agent) => (
+              <div key={agent.id} className="fynn-card p-[18px]">
                 <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold"
-                      style={{ background: `${agent.color}22`, color: agent.color }}>
-                      {agent.name[0]}
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{agent.name}</h4>
-                      <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{agent.role}</p>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <AgentAvatar agent={agent} size={42} />
+                    <div className="min-w-0">
+                      <h4 className="text-[14.5px] font-bold truncate" style={{ color: 'var(--text-h)' }}>{agent.name}</h4>
+                      <p className="text-xs truncate" style={{ color: 'var(--text-m)' }}>{agentRole(agent)}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <div className="w-2 h-2 rounded-full"
-                      style={{ background: agent.status === 'working' ? 'var(--accent-green)' : agent.status === 'idle' ? 'var(--accent-yellow)' : 'var(--text-secondary)' }} />
-                  </div>
+                  <AgentStatusPill agent={agent} />
                 </div>
-
-                <p className="text-xs mb-3 line-clamp-2" style={{ color: 'var(--text-secondary)' }}>
-                  {agent.description}
-                </p>
-
-                <div className="flex items-center justify-between pt-3 border-t" style={{ borderColor: 'var(--border)' }}>
-                  <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                    {agent.tasks_completed || 0} tasks done
+                <p className="text-[12.5px] mb-3.5 line-clamp-2 min-h-9" style={{ color: 'var(--text-m)' }}>{agent.description}</p>
+                <div className="flex items-center justify-between pt-[13px]" style={{ borderTop: '1px solid var(--divide)' }}>
+                  <span className="text-xs" style={{ color: 'var(--text-m)' }}>
+                    <b style={{ color: agent.color }}>{agent.tasks_completed || 0}</b> taken voltooid
                   </span>
-                  <div className="flex items-center gap-1">
-                    {agent.is_custom === 1 && (
-                      <>
-                        <button onClick={() => startEdit(agent)} className="p-1 rounded hover:opacity-80"
-                          style={{ color: 'var(--accent-blue)' }}>
-                          <Edit3 className="w-3.5 h-3.5" />
-                        </button>
-                        <button onClick={() => deleteAgent(agent.id)} className="p-1 rounded hover:opacity-80"
-                          style={{ color: '#ff4a4a' }}>
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </>
-                    )}
-                  </div>
+                  {agent.is_custom === 1 && (
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => startEdit(agent)} className="w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer"
+                        style={{ background: 'var(--well)' }} title="Bewerken">
+                        <Pencil className="w-3.5 h-3.5" style={{ color: 'var(--fyn-blue)' }} />
+                      </button>
+                      <button onClick={() => deleteAgent(agent.id)} className="w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer"
+                        style={{ background: 'var(--well)' }} title="Verwijderen">
+                        <Trash2 className="w-3.5 h-3.5" style={{ color: '#ef4444' }} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
           </div>
         )}
-      </div>
+      </PageBody>
     </>
   )
 }

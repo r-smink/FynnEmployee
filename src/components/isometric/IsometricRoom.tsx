@@ -1,38 +1,25 @@
 'use client'
 
 import { useState } from 'react'
-import { TILE_WIDTH, TILE_HEIGHT, toIso, VIEW_OFFSET_X, VIEW_OFFSET_Y } from './isometric-utils'
-import type { RoomDef } from './isometric-utils'
+import type { Room } from '@/lib/office'
+import { roomGeometry, type IsoLayout } from './isometric-utils'
+import { RoomFurniture, Plant } from './RoomFurniture'
 
 interface Props {
-  room: RoomDef
+  room: Room
+  layout: IsoLayout
+  selected?: boolean
+  editMode?: boolean
   onClick?: () => void
   children?: React.ReactNode
 }
 
-const WALL_HEIGHT = 50
-
-export function IsometricRoom({ room, onClick, children }: Props) {
+export function IsometricRoom({ room, layout, selected, editMode, onClick, children }: Props) {
   const [hovered, setHovered] = useState(false)
-  const { x, y } = toIso(room.col, room.row)
-  const sx = x + VIEW_OFFSET_X
-  const sy = y + VIEW_OFFSET_Y
-
-  const hw = TILE_WIDTH / 2  // half width = 100
-  const hh = TILE_HEIGHT / 2 // half height = 50
-
-  // Floor diamond points
-  const floor = `${sx},${sy - hh} ${sx + hw},${sy} ${sx},${sy + hh} ${sx - hw},${sy}`
-
-  // Left wall (bottom-left edge going up)
-  const leftWall = `${sx - hw},${sy} ${sx},${sy + hh} ${sx},${sy + hh - WALL_HEIGHT} ${sx - hw},${sy - WALL_HEIGHT}`
-
-  // Right wall (bottom-right edge going up)
-  const rightWall = `${sx + hw},${sy} ${sx},${sy + hh} ${sx},${sy + hh - WALL_HEIGHT} ${sx + hw},${sy - WALL_HEIGHT}`
-
-  const baseColor = room.color
-  const floorOpacity = hovered ? 0.25 : 0.15
-  const wallOpacity = hovered ? 0.35 : 0.2
+  const g = roomGeometry(layout, room)
+  const c = room.color
+  const lift = hovered || selected ? 1.5 : 1
+  const big = room.width * room.depth > 1
 
   return (
     <g
@@ -41,49 +28,19 @@ export function IsometricRoom({ room, onClick, children }: Props) {
       onMouseLeave={() => setHovered(false)}
       style={{ cursor: onClick ? 'pointer' : 'default' }}
     >
-      {/* Left wall */}
-      <polygon
-        points={leftWall}
-        fill={baseColor}
-        fillOpacity={wallOpacity}
-        stroke={baseColor}
-        strokeOpacity={0.4}
-        strokeWidth={1}
-      />
-      {/* Right wall */}
-      <polygon
-        points={rightWall}
-        fill={baseColor}
-        fillOpacity={wallOpacity * 0.7}
-        stroke={baseColor}
-        strokeOpacity={0.4}
-        strokeWidth={1}
-      />
-      {/* Floor */}
-      <polygon
-        points={floor}
-        fill={baseColor}
-        fillOpacity={floorOpacity}
-        stroke={baseColor}
-        strokeOpacity={0.5}
-        strokeWidth={1.5}
-      />
+      <polygon points={g.leftWall} fill={c} fillOpacity={0.22 * lift} stroke={c} strokeOpacity={0.4} strokeWidth={1} />
+      <polygon points={g.rightWall} fill={c} fillOpacity={0.13 * lift} stroke={c} strokeOpacity={0.4} strokeWidth={1} />
+      <polygon points={g.floor} fill={c} fillOpacity={0.16 * lift} stroke={c} strokeOpacity={selected ? 1 : 0.5}
+        strokeWidth={selected ? 3 : 1.5} strokeDasharray={selected && editMode ? '8 5' : undefined} />
 
-      {/* Room label */}
-      <text
-        x={sx}
-        y={sy + hh + 16}
-        textAnchor="middle"
-        fontSize={9}
-        fontWeight={600}
-        fill={baseColor}
-        fillOpacity={0.8}
-      >
+      <text x={g.label.x} y={g.label.y} textAnchor="middle" fontSize={11} fontWeight={700} fill={c} fillOpacity={0.92}>
         {room.name}
       </text>
 
-      {/* Children (furniture + agents) positioned relative to room center */}
-      <g transform={`translate(${sx}, ${sy})`}>
+      {big && g.corners.map((p, i) => <Plant key={i} x={p.x} y={p.y - 6} />)}
+
+      <g transform={`translate(${g.center.x.toFixed(1)},${g.center.y.toFixed(1)})`}>
+        <RoomFurniture fn={room.function} c={c} />
         {children}
       </g>
     </g>

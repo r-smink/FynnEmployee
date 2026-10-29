@@ -1,90 +1,69 @@
 'use client'
 
 import { formatDistanceToNow } from 'date-fns'
+import { nl } from 'date-fns/locale'
 import type { AgentData } from '@/hooks/use-agents'
+import { AgentAvatar, AgentStatusPill } from '@/components/dashboard/agent-card'
+import { ACTIVITY_COLORS, agentRole } from '@/lib/labels'
 
-const activityColors: Record<string, string> = {
-  info: 'var(--accent-blue)',
-  success: 'var(--accent-green)',
-  warning: 'var(--accent-yellow)',
-  error: '#ff4a4a',
-  thinking: 'var(--accent-purple)',
-}
-
-export function AgentPanel({ agent }: { agent: AgentData }) {
+export function AgentPanel({ agent, roomName }: { agent: AgentData; roomName?: string | null }) {
   return (
-    <div className="space-y-5">
-      {/* Profile */}
+    <div className="space-y-4">
       <div className="flex items-center gap-4">
-        <div className="w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold"
-          style={{ background: `${agent.color}22`, color: agent.color, border: `2px solid ${agent.color}44` }}>
-          {agent.name[0]}
-        </div>
-        <div>
-          <h4 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>{agent.name}</h4>
-          <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{agent.role}</p>
-          <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>{agent.description}</p>
+        <AgentAvatar agent={agent} size={56} />
+        <div className="min-w-0">
+          <h4 className="text-base font-bold" style={{ color: 'var(--text-h)' }}>{agent.name}</h4>
+          <p className="text-xs" style={{ color: 'var(--text-m)' }}>{agentRole(agent)}</p>
+          {agent.description && <p className="text-xs mt-0.5" style={{ color: 'var(--text-s)' }}>{agent.description}</p>}
         </div>
       </div>
 
-      {/* Status */}
-      <div className="glass-card p-4">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Status</span>
-          <span className="px-2 py-0.5 rounded-full text-xs font-medium"
-            style={{
-              background: agent.status === 'working' ? `${agent.color}22` : 'rgba(136,136,170,0.15)',
-              color: agent.status === 'working' ? agent.color : 'var(--text-secondary)',
-            }}>
-            {agent.status === 'working' && <span className="inline-block w-1.5 h-1.5 rounded-full mr-1 animate-pulse" style={{ background: agent.color }} />}
-            {agent.status.charAt(0).toUpperCase() + agent.status.slice(1)}
-          </span>
+      <div className="fynn-well p-4">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-semibold" style={{ color: 'var(--text-m)' }}>Status</span>
+          <AgentStatusPill agent={agent} />
         </div>
-
         {agent.currentTask && (
           <div className="mt-3">
-            <p className="text-xs font-medium mb-1" style={{ color: 'var(--text-primary)' }}>{agent.currentTask.title}</p>
-            <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--bg-primary)' }}>
+            <p className="text-[13px] font-semibold mb-2" style={{ color: 'var(--text-h)' }}>{agent.currentTask.title}</p>
+            <div className="h-[7px] rounded-full overflow-hidden" style={{ background: 'var(--track)' }}>
               <div className="h-full rounded-full transition-all duration-500"
-                style={{ width: `${agent.currentTask.progress}%`, background: agent.color }} />
+                style={{ width: `${agent.currentTask.progress}%`, background: `linear-gradient(90deg,${agent.color},#379FD3)` }} />
             </div>
-            <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>{agent.currentTask.progress}%</p>
+            <p className="text-[11.5px] mt-1.5" style={{ color: 'var(--text-m)' }}>{agent.currentTask.progress}% voltooid</p>
           </div>
         )}
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="glass-card p-3 text-center">
+        <div className="fynn-well p-3 text-center">
           <p className="text-lg font-bold" style={{ color: agent.color }}>{agent.tasks_completed}</p>
-          <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Tasks Done</p>
+          <p className="text-[11.5px]" style={{ color: 'var(--text-m)' }}>Taken voltooid</p>
         </div>
-        <div className="glass-card p-3 text-center">
-          <p className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>{agent.template_type}</p>
-          <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Type</p>
+        <div className="fynn-well p-3 text-center">
+          <p className="text-[13px] font-bold truncate leading-7" style={{ color: 'var(--text-h)' }}>{roomName || '—'}</p>
+          <p className="text-[11.5px]" style={{ color: 'var(--text-m)' }}>Werkplek</p>
         </div>
       </div>
 
-      {/* Recent Activity */}
       <div>
-        <h4 className="text-xs font-semibold mb-2" style={{ color: 'var(--text-secondary)' }}>Recent Activity</h4>
-        <div className="space-y-2">
+        <h4 className="text-xs font-bold uppercase tracking-[.05em] mb-2" style={{ color: 'var(--text-m)' }}>Recente activiteit</h4>
+        <div className="space-y-1">
           {agent.recentActivity.map((item) => {
-            let timeAgo = ''
-            try { timeAgo = formatDistanceToNow(new Date(item.created_at), { addSuffix: true }) } catch { timeAgo = 'just now' }
+            let timeAgo = 'nu'
+            try { timeAgo = formatDistanceToNow(new Date(/[zT]/i.test(item.created_at) ? item.created_at : item.created_at.replace(' ', 'T') + 'Z'), { addSuffix: true, locale: nl }) } catch {}
             return (
-              <div key={item.id} className="flex items-start gap-2 py-1.5">
-                <div className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0"
-                  style={{ background: activityColors[item.type] || activityColors.info }} />
+              <div key={item.id} className="flex items-start gap-2.5 py-1.5">
+                <span className="w-2 h-2 rounded-full mt-1.5 flex-none" style={{ background: ACTIVITY_COLORS[item.type] || ACTIVITY_COLORS.info }} />
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs leading-relaxed" style={{ color: 'var(--text-primary)' }}>{item.message}</p>
-                  <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{timeAgo}</p>
+                  <p className="text-[13px] leading-[1.45]" style={{ color: 'var(--text-b)' }}>{item.message}</p>
+                  <p className="text-[11.5px]" style={{ color: 'var(--text-s)' }}>{timeAgo}</p>
                 </div>
               </div>
             )
           })}
           {agent.recentActivity.length === 0 && (
-            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>No recent activity</p>
+            <p className="text-[13px]" style={{ color: 'var(--text-m)' }}>Nog geen activiteit</p>
           )}
         </div>
       </div>

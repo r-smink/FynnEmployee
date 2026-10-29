@@ -1,69 +1,147 @@
 @import "tailwindcss";
 
+/* Fyndable design system — brand + semantic tokens (from the FynnEmployee design) */
 :root {
-  --bg-primary: #0a0a0f;
-  --bg-secondary: #12121a;
-  --bg-card: #1a1a2e;
-  --bg-card-hover: #222240;
-  --border: #2a2a4a;
-  --text-primary: #e8e8f0;
-  --text-secondary: #8888aa;
-  --accent-blue: #4a9eff;
-  --accent-green: #4aff9e;
-  --accent-purple: #9e4aff;
+  --fyn-purple: #8F39AC;
+  --fyn-blue: #379FD3;
+  --fyn-purple-dark: #7A2F92;
+  --fyn-blue-dark: #2B84B3;
+  --fyn-gradient: linear-gradient(135deg, #8F39AC 0%, #379FD3 100%);
+  --fyn-success: #10b981;
+  --fyn-success-light: #d1fae5;
+  --fyn-warning: #f59e0b;
+  --fyn-warning-light: #fef3c7;
+  --fyn-danger: #ef4444;
+  --fyn-danger-light: #fee2e2;
+  --fyn-info: #3b82f6;
+  --fyn-info-light: #dbeafe;
+
+  /* light theme */
+  --page: #f3f2f7; --page-glow: #f3f2f7;
+  --sidebar: #ffffff; --sb-border: #eceaf2; --topbar: #ffffff;
+  --card: #ffffff; --card-border: #ececf1;
+  --well: #f6f5fa; --well-border: #edecf2; --divide: #efeef4; --row-hover: #faf8fe;
+  --text-h: #171226; --text-b: #443d57; --text-m: #766f84; --text-s: #a7a1b4;
+  --nav-fg: #5c5569; --nav-hover: #f4f1fb;
+  --input-bg: #ffffff; --input-border: #dcdae4; --track: #e9e7f0;
+  --chip-shadow: 0 1px 3px rgba(20,14,30,.07), 0 1px 2px rgba(20,14,30,.04);
+  --overlay: rgba(20,14,30,.35);
+  /* isometric furniture */
+  --iso-desk: #e4e0ee; --iso-screen: #2a2340; --iso-wheel: #3b3352;
+}
+
+html.dark {
+  --page: #06040c;
+  --page-glow: radial-gradient(1100px 520px at 72% -8%, rgba(143,57,172,.22), transparent 60%), radial-gradient(900px 480px at 12% 8%, rgba(55,159,211,.14), transparent 55%), #06040c;
+  --sidebar: #0d0a16; --sb-border: rgba(255,255,255,.07); --topbar: rgba(13,10,22,.72);
+  --card: #120d1f; --card-border: rgba(255,255,255,.08);
+  --well: #17112a; --well-border: rgba(255,255,255,.06); --divide: rgba(255,255,255,.07); --row-hover: rgba(143,57,172,.1);
+  --text-h: #f4f1fa; --text-b: #c9c2db; --text-m: #8f87a3; --text-s: #6b6480;
+  --nav-fg: #a79fbb; --nav-hover: rgba(143,57,172,.16);
+  --input-bg: #15102442; --input-border: rgba(255,255,255,.1); --track: rgba(255,255,255,.08);
+  --chip-shadow: none;
+  --overlay: rgba(0,0,0,.55);
+  --iso-desk: #1c1630; --iso-screen: #12101f; --iso-wheel: #0a0812;
+}
+
+/* Legacy variable names, mapped onto the new tokens */
+:root {
+  --bg-primary: var(--page);
+  --bg-secondary: var(--sidebar);
+  --bg-card: var(--card);
+  --bg-card-hover: var(--row-hover);
+  --border: var(--card-border);
+  --text-primary: var(--text-h);
+  --text-secondary: var(--text-m);
+  --accent-blue: var(--fyn-blue);
+  --accent-green: var(--fyn-success);
+  --accent-purple: var(--fyn-purple);
   --accent-orange: #ff9e4a;
   --accent-pink: #ff4a9e;
-  --accent-yellow: #ffe04a;
+  --accent-yellow: var(--fyn-warning);
 }
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
+/* Tailwind preflight already resets margins/padding; unlayered resets here would override utilities */
 body {
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--page);
+  color: var(--text-b);
+  font-family: var(--font-outfit), system-ui, sans-serif;
 }
 
-::-webkit-scrollbar {
-  width: 6px;
-}
-::-webkit-scrollbar-track {
-  background: var(--bg-secondary);
-}
-::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 3px;
-}
+a { color: var(--fyn-purple); text-decoration: none; }
+a:hover { color: var(--fyn-blue); }
 
-@keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 5px rgba(74, 158, 255, 0.2); }
-  50% { box-shadow: 0 0 20px rgba(74, 158, 255, 0.6); }
-}
-@keyframes slide-in {
-  from { transform: translateX(20px); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
-}
-@keyframes fade-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-@keyframes spin-slow {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-thumb { background: rgba(143,57,172,.4); border-radius: 9px; border: 2px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-track { background: transparent; }
 
-.animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
+@keyframes fynn-fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes fynn-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+@keyframes slide-in { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+.animate-fade-in { animation: fynn-fade .3s ease; }
+.animate-fynn-pulse { animation: fynn-pulse 2s ease-in-out infinite; }
 .animate-slide-in { animation: slide-in 0.3s ease-out; }
-.animate-fade-in { animation: fade-in 0.4s ease-out; }
-.animate-spin-slow { animation: spin-slow 3s linear infinite; }
 
-.glass-card {
-  background: rgba(26, 26, 46, 0.6);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--border);
-  border-radius: 12px;
+/* Surfaces */
+.fynn-card {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 15px;
+  box-shadow: var(--chip-shadow);
 }
+.glass-card { /* legacy alias */
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 15px;
+  box-shadow: var(--chip-shadow);
+}
+.fynn-well {
+  background: var(--well);
+  border: 1px solid var(--well-border);
+  border-radius: 11px;
+}
+
+/* Controls */
+.fynn-inp {
+  width: 100%; height: 44px; padding: 0 14px;
+  border-radius: 9px; border: 2px solid var(--input-border);
+  background: var(--input-bg); color: var(--text-b);
+  font-family: inherit; font-size: 13.5px; outline: none;
+  transition: border-color .2s ease;
+}
+textarea.fynn-inp { height: auto; padding: 10px 14px; resize: vertical; }
+select.fynn-inp { cursor: pointer; }
+.fynn-inp:focus { border-color: var(--fyn-purple); }
+.fynn-inp::placeholder { color: var(--text-s); }
+
+.fynn-btn {
+  height: 42px; padding: 0 18px; border-radius: 9px; border: none;
+  background: var(--fyn-gradient); color: #fff;
+  font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 8px;
+  box-shadow: 0 4px 14px rgba(143,57,172,.35);
+  transition: opacity .2s ease;
+}
+.fynn-btn:hover { opacity: .92; }
+.fynn-btn:disabled { opacity: .5; cursor: not-allowed; }
+.fynn-btn-ghost {
+  height: 42px; padding: 0 16px; border-radius: 9px;
+  border: 2px solid var(--input-border); background: var(--card); color: var(--text-b);
+  font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.fynn-btn-ghost:hover { border-color: var(--fyn-purple); color: var(--text-h); }
+.fynn-btn-ghost:disabled { opacity: .5; cursor: not-allowed; }
+
+.fynn-label { display: block; font-size: 12px; font-weight: 700; color: var(--text-b); margin-bottom: 5px; }
+.fynn-hint { font-size: 11.5px; color: var(--text-s); margin-bottom: 8px; }
+.fynn-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 11px; border-radius: 999px; font-size: 11.5px; font-weight: 700;
+}
+.fynn-th {
+  padding: 12px 14px; text-align: left; font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .05em; color: var(--text-m);
+}
+.fynn-section-title { margin: 0; font-size: 15px; font-weight: 700; color: var(--text-h); }

@@ -205,6 +205,23 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
+// Validate ../../../src/app/shops/[shopId]/office/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/shops/[shopId]/office">> = Specific
+  const handler = {} as typeof import("../../../src/app/shops/[shopId]/office/page.js")
+  type __Check = __IsExpected<typeof handler>
+  
+  type __ParamMatchingValue =
+    typeof handler extends { unstable_paramMatching: infer Matcher } ? Matcher :
+    typeof handler extends { unstable_generateParamMatching: (...args: any[]) => infer Matcher } ? Awaited<Matcher> : {}
+  type __InvalidParamMatchingKeys = Exclude<keyof __ParamMatchingValue, keyof ParamMap["/shops/[shopId]/office"]>
+  type __AssertNoInvalidParamMatchingKeys<Invalid extends never> = Invalid
+  const __paramMatchingKeyCheck: __AssertNoInvalidParamMatchingKeys<__InvalidParamMatchingKeys> | undefined = undefined
+  void __paramMatchingKeyCheck
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../../src/app/shops/[shopId]/orders/page.tsx
 {
   type __IsExpected<Specific extends AppPageConfig<"/shops/[shopId]/orders">> = Specific
@@ -437,6 +454,26 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/api/shops/[shopId]/products">> = Specific
   const handler = {} as typeof import("../../../src/app/api/shops/[shopId]/products/route.js")
+  type __Check = __IsExpected<typeof handler>
+  
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../../src/app/api/shops/[shopId]/rooms/[roomId]/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/shops/[shopId]/rooms/[roomId]">> = Specific
+  const handler = {} as typeof import("../../../src/app/api/shops/[shopId]/rooms/[roomId]/route.js")
+  type __Check = __IsExpected<typeof handler>
+  
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../../src/app/api/shops/[shopId]/rooms/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/shops/[shopId]/rooms">> = Specific
+  const handler = {} as typeof import("../../../src/app/api/shops/[shopId]/rooms/route.js")
   type __Check = __IsExpected<typeof handler>
   
   // @ts-ignore

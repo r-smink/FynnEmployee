@@ -1,82 +1,69 @@
 'use client'
 
 import { formatDistanceToNow } from 'date-fns'
+import { nl } from 'date-fns/locale'
+import { Rss } from 'lucide-react'
 import type { ActivityItem } from '@/hooks/use-event-stream'
+import type { AgentData } from '@/hooks/use-agents'
+import { DEFAULT_AGENT_TEMPLATES } from '@/agents/types'
+import { ACTIVITY_COLORS, alpha } from '@/lib/labels'
 
-const typeColors: Record<string, string> = {
-  info: 'var(--accent-blue)',
-  success: 'var(--accent-green)',
-  warning: 'var(--accent-yellow)',
-  error: '#ff4a4a',
-  thinking: 'var(--accent-purple)',
+// Resolve name/color from live agents, falling back to the default templates
+// (agent ids in non-default shops are prefixed with the shop id)
+function resolveAgent(agentId: string, agents?: AgentData[]) {
+  const live = agents?.find(a => a.id === agentId)
+  if (live) return { name: live.name, color: live.color }
+  const key = Object.keys(DEFAULT_AGENT_TEMPLATES).find(k => agentId === k || agentId.endsWith(`-${k}`))
+  if (key) return { name: DEFAULT_AGENT_TEMPLATES[key].name, color: DEFAULT_AGENT_TEMPLATES[key].color }
+  return { name: agentId, color: '#8f87a3' }
 }
 
-const agentColors: Record<string, string> = {
-  luna: '#9e4aff',
-  marcus: '#4a9eff',
-  aria: '#4aff9e',
-  rex: '#ff9e4a',
-  nova: '#ff4a9e',
-}
-const agentNames: Record<string, string> = {
-  luna: 'Luna',
-  marcus: 'Marcus',
-  aria: 'Aria',
-  rex: 'Rex',
-  nova: 'Nova',
-}
-
-export function ActivityFeed({ activities }: { activities: ActivityItem[] }) {
-  if (activities.length === 0) {
-    return (
-      <div className="glass-card p-6 text-center">
-        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-          Waiting for agent activity...
-        </p>
-        <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
-          Agents will start working shortly
-        </p>
-      </div>
-    )
-  }
-
+export function ActivityFeed({ activities, agents }: { activities: ActivityItem[]; agents?: AgentData[] }) {
   return (
-    <div className="glass-card overflow-hidden">
-      <div className="px-5 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
-        <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Live Activity Feed</h3>
+    <div className="fynn-card overflow-hidden">
+      <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid var(--divide)' }}>
+        <div className="flex items-center gap-[9px]">
+          <Rss className="w-[17px] h-[17px]" style={{ color: 'var(--fyn-purple)' }} />
+          <h3 className="fynn-section-title">Live activiteit</h3>
+        </div>
+        <span className="inline-flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-m)' }}>
+          <span className="w-[7px] h-[7px] rounded-full animate-fynn-pulse" style={{ background: '#10b981' }} />
+          Streaming
+        </span>
       </div>
-      <div className="max-h-96 overflow-y-auto divide-y" style={{ borderColor: 'var(--border)' }}>
-        {activities.map((item) => {
-          const color = agentColors[item.agentId] || 'var(--text-secondary)'
-          const name = agentNames[item.agentId] || item.agentId
-          const typeColor = typeColors[item.type] || typeColors.info
-          let timeAgo = ''
-          try {
-            timeAgo = formatDistanceToNow(new Date(item.timestamp), { addSuffix: true })
-          } catch {
-            timeAgo = 'just now'
-          }
 
-          return (
-            <div key={item.id} className="flex items-start gap-3 px-5 py-3 animate-fade-in"
-              style={{ borderColor: 'var(--border)' }}>
-              <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5"
-                style={{ background: `${color}22`, color }}>
-                {name[0]}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <span className="text-xs font-semibold" style={{ color }}>{name}</span>
-                  <span className="w-1 h-1 rounded-full" style={{ background: 'var(--border)' }} />
-                  <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{timeAgo}</span>
+      {activities.length === 0 ? (
+        <div className="px-5 py-10 text-center">
+          <p className="text-[13px]" style={{ color: 'var(--text-m)' }}>Wachten op activiteit van agents…</p>
+          <p className="text-xs mt-1" style={{ color: 'var(--text-s)' }}>De agents gaan zo aan de slag</p>
+        </div>
+      ) : (
+        <div className="max-h-[360px] overflow-y-auto">
+          {activities.map((item) => {
+            const { name, color } = resolveAgent(item.agentId, agents)
+            let timeAgo = 'nu'
+            try { timeAgo = formatDistanceToNow(new Date(item.timestamp), { addSuffix: true, locale: nl }) } catch {}
+
+            return (
+              <div key={item.id} className="flex items-start gap-3 px-5 py-[13px] animate-fade-in" style={{ borderBottom: '1px solid var(--divide)' }}>
+                <div className="w-[30px] h-[30px] rounded-full flex items-center justify-center text-xs font-bold flex-none"
+                  style={{ background: alpha(color, '22'), color }}>
+                  {name[0]}
                 </div>
-                <p className="text-xs leading-relaxed" style={{ color: 'var(--text-primary)' }}>{item.message}</p>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="text-[12.5px] font-bold" style={{ color }}>{name}</span>
+                    <span className="w-[3px] h-[3px] rounded-full" style={{ background: 'var(--text-s)' }} />
+                    <span className="text-[11.5px]" style={{ color: 'var(--text-s)' }}>{timeAgo}</span>
+                  </div>
+                  <div className="text-[13px] leading-[1.45]" style={{ color: 'var(--text-b)' }}>{item.message}</div>
+                </div>
+                <span className="w-2 h-2 rounded-full flex-none mt-1.5" style={{ background: ACTIVITY_COLORS[item.type] || ACTIVITY_COLORS.info }} />
               </div>
-              <div className="w-1.5 h-1.5 rounded-full shrink-0 mt-2" style={{ background: typeColor }} />
-            </div>
-          )
-        })}
-      </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

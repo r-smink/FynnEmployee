@@ -1,35 +1,40 @@
 'use client'
 
-import { DollarSign, ShoppingBag, Users, CheckCircle2 } from 'lucide-react'
+import { Euro, ShoppingCart, Users, CheckCircle2 } from 'lucide-react'
 import type { AgentData } from '@/hooks/use-agents'
+import { alpha } from '@/lib/labels'
 
 interface MetricsBarProps {
   agents: AgentData[]
 }
 
 export function MetricsBar({ agents }: MetricsBarProps) {
-  const activeAgents = agents.filter(a => a.status === 'working').length
+  const working = agents.filter(a => a.status === 'working')
   const totalTasks = agents.reduce((sum, a) => sum + a.tasks_completed, 0)
 
   const metrics = [
-    { label: 'Total Revenue', value: '$4,827.50', icon: DollarSign, color: 'var(--accent-green)' },
-    { label: 'Orders Today', value: '23', icon: ShoppingBag, color: 'var(--accent-blue)' },
-    { label: 'Active Agents', value: `${activeAgents} / ${agents.length}`, icon: Users, color: 'var(--accent-purple)' },
-    { label: 'Tasks Completed', value: totalTasks.toString(), icon: CheckCircle2, color: 'var(--accent-orange)' },
+    { label: 'Totale omzet', value: '€4.827', sub: 'deze maand', icon: Euro, color: '#10b981' },
+    { label: 'Bestellingen vandaag', value: '23', sub: '+5 vs gisteren', icon: ShoppingCart, color: '#379FD3' },
+    {
+      label: 'Actieve agents', value: `${working.length} / ${agents.length}`, icon: Users, color: '#9e4aff',
+      sub: working.length === 0 ? 'iedereen pauzeert' : working.length === 1 ? `${working[0].name} werkt` : `${working.length} agents werken`,
+    },
+    { label: 'Taken voltooid', value: totalTasks.toString(), sub: 'totaal', icon: CheckCircle2, color: '#ff9e4a' },
   ]
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      {metrics.map((metric) => (
-        <div key={metric.label} className="glass-card px-5 py-4">
+    <div className="grid gap-4 mb-[22px]" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(210px,1fr))' }}>
+      {metrics.map((m) => (
+        <div key={m.label} className="fynn-card relative overflow-hidden px-5 py-[18px]">
+          <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: 'linear-gradient(90deg,#8F39AC,#379FD3)' }} />
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs mb-1" style={{ color: 'var(--text-secondary)' }}>{metric.label}</p>
-              <p className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>{metric.value}</p>
+            <div className="min-w-0">
+              <div className="text-[11.5px] font-semibold uppercase tracking-[.04em]" style={{ color: 'var(--text-m)' }}>{m.label}</div>
+              <div className="text-[26px] font-bold tracking-[-.02em] mt-2 leading-none" style={{ color: 'var(--text-h)' }}>{m.value}</div>
+              <div className="text-xs mt-[7px]" style={{ color: 'var(--text-m)' }}>{m.sub}</div>
             </div>
-            <div className="w-10 h-10 rounded-lg flex items-center justify-center"
-              style={{ background: `${metric.color}15` }}>
-              <metric.icon className="w-5 h-5" style={{ color: metric.color }} />
+            <div className="w-[46px] h-[46px] rounded-[13px] flex items-center justify-center flex-none" style={{ background: alpha(m.color, '1e') }}>
+              <m.icon className="w-[22px] h-[22px]" style={{ color: m.color }} />
             </div>
           </div>
         </div>

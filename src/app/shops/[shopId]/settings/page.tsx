@@ -2,8 +2,12 @@
 
 import { use, useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { Key, Sparkles, Zap, Check, Loader2, ExternalLink, Store, Link2, ShoppingBag, Settings2, BookOpen } from 'lucide-react'
 import { Topbar } from '@/components/layout/topbar'
-import { Key, ToggleLeft, ToggleRight, Bot, Sparkles, Check, Loader2, ExternalLink, Store, Link2, ShoppingBag } from 'lucide-react'
+import { PageBody } from '@/components/layout/app-shell'
+import { AgentAvatar } from '@/components/dashboard/agent-card'
+import { useAgents } from '@/hooks/use-agents'
+import { agentRole } from '@/lib/labels'
 
 interface ApiKeyField {
   label: string
@@ -15,35 +19,26 @@ interface ApiKeyField {
 
 const apiKeys: ApiKeyField[] = [
   {
-    label: 'OpenRouter API Key',
+    label: 'OpenRouter API-sleutel',
     key: 'openrouter_api_key',
-    placeholder: 'sk-or-v1-...',
-    description: 'Powers all AI agents. Get one free at openrouter.ai/keys',
+    placeholder: 'sk-or-v1-…',
+    description: 'Voedt alle AI-agents. Gratis sleutel via openrouter.ai/keys',
   },
   {
-    label: 'OpenRouter Model',
+    label: 'OpenRouter-model',
     key: 'openrouter_model',
     placeholder: 'google/gemini-2.0-flash-001',
-    description: 'Default: google/gemini-2.0-flash-001 (fast & cheap)',
+    description: 'Standaard: google/gemini-2.0-flash-001 (snel & goedkoop)',
     type: 'text',
   },
 ]
 
-const etsyKeys: ApiKeyField[] = [
-  {
-    label: 'Etsy API Key (Keystring)',
-    key: 'etsy_api_key',
-    placeholder: 'Your Etsy app keystring...',
-    description: 'From your Etsy Seller App at etsy.com/developers',
-  },
-]
-
-const agents = [
-  { id: 'luna', name: 'Luna', role: 'Design Agent', color: '#9e4aff' },
-  { id: 'marcus', name: 'Marcus', role: 'Listing Agent', color: '#4a9eff' },
-  { id: 'aria', name: 'Aria', role: 'Fulfillment Agent', color: '#4aff9e' },
-  { id: 'rex', name: 'Rex', role: 'Support Agent', color: '#ff9e4a' },
-  { id: 'nova', name: 'Nova', role: 'Analytics Agent', color: '#ff4a9e' },
+const MODELS = [
+  { model: 'google/gemini-2.0-flash-001', note: 'Snel & goedkoop — top default', cost: '~$0,10/1M' },
+  { model: 'openai/gpt-4o-mini', note: 'Goede kwaliteit, betaalbaar', cost: '~$0,15/1M' },
+  { model: 'anthropic/claude-sonnet-4', note: 'Beste voor creatief schrijven', cost: '~$3/1M' },
+  { model: 'meta-llama/llama-3.3-70b-instruct', note: 'Gratis tier beschikbaar', cost: 'Gratis' },
+  { model: 'deepseek/deepseek-chat-v3-0324', note: 'Zeer capabel & goedkoop', cost: '~$0,27/1M' },
 ]
 
 interface EtsyShop {
@@ -57,10 +52,22 @@ interface EtsyShop {
   icon: string | null
 }
 
+const connectedPill = { background: 'var(--fyn-success-light)', color: '#047857', fontSize: 11 }
+const disconnectedPill = { background: 'var(--track)', color: 'var(--text-m)', fontSize: 11 }
+
+function CardTitle({ icon: Icon, color, children }: { icon: typeof Key; color: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-[9px] mb-4">
+      <Icon className="w-[18px] h-[18px]" style={{ color }} />
+      <h3 className="fynn-section-title">{children}</h3>
+    </div>
+  )
+}
+
 export default function SettingsPage({ params }: { params: Promise<{ shopId: string }> }) {
   const { shopId } = use(params)
   return (
-    <Suspense fallback={<div className="p-6"><Topbar title="Settings" subtitle="Loading..." /></div>}>
+    <Suspense fallback={<Topbar title="Instellingen" subtitle="Laden…" />}>
       <SettingsContent shopId={shopId} />
     </Suspense>
   )
@@ -68,10 +75,9 @@ export default function SettingsPage({ params }: { params: Promise<{ shopId: str
 
 function SettingsContent({ shopId }: { shopId: string }) {
   const searchParams = useSearchParams()
+  const { agents } = useAgents(shopId)
   const [values, setValues] = useState<Record<string, string>>({})
-  const [agentStates, setAgentStates] = useState<Record<string, boolean>>(
-    Object.fromEntries(agents.map(a => [a.id, true]))
-  )
+  const [disabledAgents, setDisabledAgents] = useState<Record<string, boolean>>({})
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [aiEnabled, setAiEnabled] = useState(false)
@@ -182,319 +188,216 @@ function SettingsContent({ shopId }: { shopId: string }) {
       }
       window.location.href = data.url
     } catch {
-      setEtsyError('Failed to start OAuth flow')
+      setEtsyError('OAuth-flow starten mislukt')
       setEtsyConnecting(false)
     }
   }
 
   return (
     <>
-      <Topbar title="Settings" subtitle="Configure integrations and agent behavior" />
-      <div className="p-6 space-y-6 max-w-3xl">
-        {/* AI Status Banner */}
-        <div className="glass-card p-5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg flex items-center justify-center"
-                style={{ background: aiEnabled ? 'rgba(74, 255, 158, 0.15)' : 'rgba(136, 136, 170, 0.15)' }}>
-                <Sparkles className="w-5 h-5" style={{ color: aiEnabled ? 'var(--accent-green)' : 'var(--text-secondary)' }} />
+      <Topbar title="Instellingen" subtitle="Integraties en agent-gedrag configureren" />
+      <PageBody>
+        <div className="max-w-[860px]">
+          {/* AI status banner */}
+          <div className="flex items-center justify-between gap-4 rounded-[15px] px-[22px] py-5 mb-[18px]"
+            style={{ background: 'linear-gradient(135deg,rgba(143,57,172,.16),rgba(55,159,211,.13))', border: '1px solid var(--card-border)' }}>
+            <div className="flex items-center gap-3.5">
+              <div className="w-[46px] h-[46px] rounded-[13px] flex items-center justify-center"
+                style={{ background: aiEnabled ? 'rgba(16,185,129,.2)' : 'rgba(143,57,172,.2)' }}>
+                {aiEnabled
+                  ? <Sparkles className="w-[22px] h-[22px]" style={{ color: 'var(--fyn-success)' }} />
+                  : <Zap className="w-[22px] h-[22px]" style={{ color: 'var(--fyn-purple)' }} />}
               </div>
               <div>
-                <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                  {aiEnabled ? 'AI Mode Active' : 'Demo Mode (Simulation)'}
-                </h3>
-                <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                <div className="text-[15px] font-bold" style={{ color: 'var(--text-h)' }}>
+                  {aiEnabled ? 'AI-modus actief' : 'Demo-modus (simulatie)'}
+                </div>
+                <div className="text-[12.5px] mt-0.5" style={{ color: 'var(--text-m)' }}>
                   {aiEnabled
-                    ? 'Agents are using OpenRouter AI for real content generation'
-                    : 'Add an OpenRouter API key below to enable AI-powered agents'}
-                </p>
+                    ? 'Agents gebruiken OpenRouter voor echte content'
+                    : 'Voeg een OpenRouter-sleutel toe om AI-gestuurde agents in te schakelen.'}
+                </div>
               </div>
             </div>
-            <div className="w-3 h-3 rounded-full animate-pulse"
-              style={{ background: aiEnabled ? 'var(--accent-green)' : 'var(--text-secondary)' }} />
-          </div>
-        </div>
-
-        {/* Etsy Connection */}
-        <div className="glass-card p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <Store className="w-4 h-4" style={{ color: 'var(--accent-orange)' }} />
-            <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Etsy Store Connection</h3>
+            <div className="w-3 h-3 rounded-full animate-fynn-pulse" style={{ background: aiEnabled ? 'var(--fyn-success)' : 'var(--fyn-purple)' }} />
           </div>
 
-          {etsyConnected && etsyShop ? (
-            <div className="space-y-4">
-              <div className="flex items-center gap-4 p-4 rounded-lg" style={{ background: 'var(--bg-primary)' }}>
-                <div className="w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold"
-                  style={{ background: 'rgba(255, 158, 74, 0.15)', color: 'var(--accent-orange)' }}>
-                  {etsyShop.icon ? (
-                    <img src={etsyShop.icon} alt="" className="w-12 h-12 rounded-full" />
-                  ) : (
-                    <Store className="w-6 h-6" />
-                  )}
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <h4 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                      {etsyShop.name}
-                    </h4>
-                    <span className="px-2 py-0.5 rounded-full text-xs font-medium"
-                      style={{ background: 'rgba(74, 255, 158, 0.15)', color: 'var(--accent-green)' }}>
-                      Connected
-                    </span>
+          {/* Integrations */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-[18px]">
+            {/* Etsy */}
+            <div className="fynn-card p-5">
+              <div className="flex items-center justify-between mb-3.5">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center" style={{ background: 'rgba(255,158,74,.16)' }}>
+                    <Store className="w-[18px] h-[18px]" style={{ color: '#ff9e4a' }} />
                   </div>
-                  {etsyShop.title && (
-                    <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>{etsyShop.title}</p>
-                  )}
-                  <div className="flex items-center gap-4 mt-2">
-                    <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                      <ShoppingBag className="w-3 h-3 inline mr-1" />
-                      {etsyShop.activeListings} listings
-                    </span>
-                    <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                      {etsyShop.sales} sales
-                    </span>
-                    <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                      {etsyShop.favorites} favorites
-                    </span>
+                  <h3 className="m-0 text-[14.5px] font-bold" style={{ color: 'var(--text-h)' }}>Etsy-winkel</h3>
+                </div>
+                <span className="fynn-pill" style={etsyConnected && etsyShop ? connectedPill : disconnectedPill}>
+                  {etsyConnected && etsyShop ? 'Verbonden' : 'Niet verbonden'}
+                </span>
+              </div>
+
+              {etsyConnected && etsyShop ? (
+                <>
+                  <div className="fynn-well flex items-center gap-3 px-3.5 py-3">
+                    <div className="w-[38px] h-[38px] rounded-full flex items-center justify-center flex-none overflow-hidden" style={{ background: 'rgba(255,158,74,.16)' }}>
+                      {etsyShop.icon
+                        ? <img src={etsyShop.icon} alt="" className="w-full h-full object-cover" />
+                        : <Store className="w-[17px] h-[17px]" style={{ color: '#ff9e4a' }} />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[13px] font-bold truncate" style={{ color: 'var(--text-h)' }}>{etsyShop.name}</div>
+                      <div className="text-[11.5px] truncate" style={{ color: 'var(--text-m)' }}>
+                        {etsyShop.activeListings} listings · {etsyShop.sales} verkopen · {etsyShop.favorites} favorieten
+                      </div>
+                    </div>
+                    <a href={etsyShop.url} target="_blank" rel="noopener noreferrer" title="Bekijk winkel">
+                      <ExternalLink className="w-4 h-4" />
+                    </a>
                   </div>
-                </div>
-                <a href={etsyShop.url} target="_blank" rel="noopener noreferrer"
-                  className="text-xs flex items-center gap-1 hover:opacity-80"
-                  style={{ color: 'var(--accent-blue)' }}>
-                  <ExternalLink className="w-3 h-3" /> View
-                </a>
-              </div>
-              <p className="text-xs" style={{ color: 'var(--accent-green)' }}>
-                Marcus can now publish listings directly. Aria will sync real orders.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                Connect your Etsy Seller account to enable real listing management and order syncing.
-                You need a <strong>Seller App</strong> from etsy.com/developers.
-              </p>
-
-              {etsyKeys.map((field) => (
-                <div key={field.key}>
-                  <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
-                    {field.label}
-                  </label>
-                  {field.description && (
-                    <p className="text-xs mb-1.5" style={{ color: 'var(--text-secondary)', opacity: 0.7 }}>
-                      {field.description}
-                    </p>
-                  )}
-                  <input
-                    type="password"
-                    placeholder={field.placeholder}
-                    value={values[field.key] || ''}
-                    onChange={e => setValues(v => ({ ...v, [field.key]: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                    style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-                  />
-                </div>
-              ))}
-
-              {etsyError && (
-                <p className="text-xs px-3 py-2 rounded-lg" style={{ background: 'rgba(255, 74, 74, 0.1)', color: '#ff4a4a' }}>
-                  {etsyError}
-                </p>
-              )}
-
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={connectEtsy}
-                  disabled={etsyConnecting}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all hover:opacity-90 disabled:opacity-50"
-                  style={{ background: 'var(--accent-orange)', color: 'white' }}>
-                  {etsyConnecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
-                  {etsyConnecting ? 'Connecting...' : 'Connect Etsy Store'}
-                </button>
-                <a href="https://www.etsy.com/developers/your-apps" target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium hover:opacity-80"
-                  style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
-                  <ExternalLink className="w-3 h-3" /> Create Seller App
-                </a>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Printful Connection */}
-        <div className="glass-card p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <ShoppingBag className="w-4 h-4" style={{ color: 'var(--accent-green)' }} />
-            <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Printful (Dropshipping)</h3>
-          </div>
-
-          {printfulConnected && printfulStore ? (
-            <div className="flex items-center gap-4 p-4 rounded-lg" style={{ background: 'var(--bg-primary)' }}>
-              <div className="w-10 h-10 rounded-full flex items-center justify-center"
-                style={{ background: 'rgba(74, 255, 158, 0.15)', color: 'var(--accent-green)' }}>
-                <ShoppingBag className="w-5 h-5" />
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <h4 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{printfulStore.name}</h4>
-                  <span className="px-2 py-0.5 rounded-full text-xs font-medium"
-                    style={{ background: 'rgba(74, 255, 158, 0.15)', color: 'var(--accent-green)' }}>Connected</span>
-                </div>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-                  {printfulStore.type} store &middot; {printfulStore.currency}
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                Connect Printful for automatic print-on-demand fulfillment. Use a <strong>Private Token</strong> from your Printful dashboard.
-              </p>
-              <div>
-                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Printful API Token</label>
-                <input
-                  type="password"
-                  placeholder="Your Printful private token..."
-                  value={values.printful_api_key || ''}
-                  onChange={e => setValues(v => ({ ...v, printful_api_key: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                  style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-                />
-              </div>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={testPrintfulConnection}
-                  disabled={printfulChecking || !values.printful_api_key}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all hover:opacity-90 disabled:opacity-50"
-                  style={{ background: 'var(--accent-green)', color: '#0a0a0f' }}>
-                  {printfulChecking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
-                  {printfulChecking ? 'Checking...' : 'Connect Printful'}
-                </button>
-                <a href="https://www.printful.com/dashboard/developer/api" target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium hover:opacity-80"
-                  style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
-                  <ExternalLink className="w-3 h-3" /> Get API Token
-                </a>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* API Keys */}
-        <div className="glass-card p-5">
-          <div className="flex items-center gap-2 mb-5">
-            <Key className="w-4 h-4" style={{ color: 'var(--accent-blue)' }} />
-            <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>API Keys</h3>
-          </div>
-          <div className="space-y-4">
-            {apiKeys.map((field) => (
-              <div key={field.key}>
-                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
-                  {field.label}
-                </label>
-                {field.description && (
-                  <p className="text-xs mb-1.5" style={{ color: 'var(--text-secondary)', opacity: 0.7 }}>
-                    {field.description}
+                  <div className="text-[11.5px] mt-2.5" style={{ color: '#10b981' }}>Marcus publiceert listings direct. Aria synchroniseert echte orders.</div>
+                </>
+              ) : (
+                <>
+                  <p className="mb-3 text-[12.5px] leading-normal" style={{ color: 'var(--text-m)' }}>
+                    Verbind je Etsy-verkopersaccount voor echt listingbeheer en ordersynchronisatie. Je hebt een <b>Seller App</b> nodig.
                   </p>
-                )}
-                <input
-                  type={field.type || 'password'}
-                  placeholder={field.placeholder}
-                  value={values[field.key] || ''}
-                  onChange={e => setValues(v => ({ ...v, [field.key]: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-1"
-                  style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-                />
+                  <input type="password" className="fynn-inp mb-3" placeholder="Je Etsy-app keystring…"
+                    value={values.etsy_api_key || ''} onChange={e => setValues(v => ({ ...v, etsy_api_key: e.target.value }))} />
+                  {etsyError && (
+                    <p className="text-xs px-3 py-2 rounded-lg mb-3" style={{ background: 'var(--fyn-danger-light)', color: '#b91c1c' }}>{etsyError}</p>
+                  )}
+                  <button onClick={connectEtsy} disabled={etsyConnecting}
+                    className="fynn-btn" style={{ height: 40, background: '#ff9e4a', boxShadow: 'none', fontWeight: 700, fontSize: 12.5 }}>
+                    {etsyConnecting ? <Loader2 className="w-[15px] h-[15px] animate-spin" /> : <Link2 className="w-[15px] h-[15px]" />}
+                    {etsyConnecting ? 'Verbinden…' : 'Verbind Etsy'}
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* Printful */}
+            <div className="fynn-card p-5">
+              <div className="flex items-center justify-between mb-3.5">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center" style={{ background: 'rgba(16,185,129,.16)' }}>
+                    <ShoppingBag className="w-[18px] h-[18px]" style={{ color: '#10b981' }} />
+                  </div>
+                  <h3 className="m-0 text-[14.5px] font-bold" style={{ color: 'var(--text-h)' }}>Printful</h3>
+                </div>
+                <span className="fynn-pill" style={printfulConnected && printfulStore ? connectedPill : disconnectedPill}>
+                  {printfulConnected && printfulStore ? 'Verbonden' : 'Niet verbonden'}
+                </span>
+              </div>
+
+              {printfulConnected && printfulStore ? (
+                <div className="fynn-well flex items-center gap-3 px-3.5 py-3">
+                  <div className="w-[38px] h-[38px] rounded-full flex items-center justify-center flex-none" style={{ background: 'rgba(16,185,129,.16)' }}>
+                    <ShoppingBag className="w-[17px] h-[17px]" style={{ color: '#10b981' }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[13px] font-bold truncate" style={{ color: 'var(--text-h)' }}>{printfulStore.name}</div>
+                    <div className="text-[11.5px]" style={{ color: 'var(--text-m)' }}>{printfulStore.type}-winkel · {printfulStore.currency}</div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <p className="mb-3 text-[12.5px] leading-normal" style={{ color: 'var(--text-m)' }}>
+                    Verbind Printful voor automatische print-on-demand fulfilment via een Private Token.
+                  </p>
+                  <input type="password" className="fynn-inp mb-3" placeholder="Je Printful private token…"
+                    value={values.printful_api_key || ''} onChange={e => setValues(v => ({ ...v, printful_api_key: e.target.value }))} />
+                  <div className="flex items-center gap-3">
+                    <button onClick={testPrintfulConnection} disabled={printfulChecking || !values.printful_api_key}
+                      className="fynn-btn" style={{ height: 40, background: '#10b981', boxShadow: 'none', fontWeight: 700, fontSize: 12.5 }}>
+                      {printfulChecking ? <Loader2 className="w-[15px] h-[15px] animate-spin" /> : <Link2 className="w-[15px] h-[15px]" />}
+                      {printfulChecking ? 'Controleren…' : 'Verbind Printful'}
+                    </button>
+                    <a href="https://www.printful.com/dashboard/developer/api" target="_blank" rel="noopener noreferrer" className="text-xs font-semibold inline-flex items-center gap-1">
+                      <ExternalLink className="w-3 h-3" /> Token ophalen
+                    </a>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* API keys */}
+          <div className="fynn-card p-[22px] mb-[18px]">
+            <CardTitle icon={Key} color="var(--fyn-blue)">API-sleutels</CardTitle>
+            {apiKeys.map((field) => (
+              <div key={field.key} className="mb-4">
+                <label className="fynn-label">{field.label}</label>
+                {field.description && <div className="fynn-hint">{field.description}</div>}
+                <input className="fynn-inp" type={field.type || 'password'} placeholder={field.placeholder}
+                  value={values[field.key] || ''} onChange={e => setValues(v => ({ ...v, [field.key]: e.target.value }))} />
               </div>
             ))}
-
-            <div className="flex items-center gap-3 pt-2">
-              <button
-                onClick={saveSettings}
-                disabled={saving}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all hover:opacity-90 disabled:opacity-50"
-                style={{ background: 'var(--accent-blue)', color: 'white' }}>
+            <div className="flex flex-wrap gap-2.5 mt-1">
+              <button className="fynn-btn" onClick={saveSettings} disabled={saving}>
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : saved ? <Check className="w-4 h-4" /> : null}
-                {saving ? 'Saving...' : saved ? 'Saved!' : 'Save Settings'}
+                {saving ? 'Opslaan…' : saved ? 'Opgeslagen!' : 'Instellingen opslaan'}
               </button>
-              <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium hover:opacity-80"
-                style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
-                <ExternalLink className="w-3 h-3" /> Get OpenRouter Key
+              <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer" className="fynn-btn-ghost">
+                <ExternalLink className="w-3.5 h-3.5" /> OpenRouter-sleutel ophalen
               </a>
             </div>
           </div>
-        </div>
 
-        {/* Agent Toggles */}
-        <div className="glass-card p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <Bot className="w-4 h-4" style={{ color: 'var(--accent-green)' }} />
-            <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Agent Controls</h3>
-          </div>
-          <div className="space-y-3">
-            {agents.map((agent) => (
-              <div key={agent.id} className="flex items-center justify-between py-2 px-3 rounded-lg"
-                style={{ background: 'var(--bg-primary)' }}>
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
-                    style={{ background: `${agent.color}22`, color: agent.color }}>
-                    {agent.name[0]}
+          {/* Agent controls */}
+          <div className="fynn-card p-[22px] mb-[18px]">
+            <CardTitle icon={Settings2} color="var(--fyn-purple)">Agent-besturing</CardTitle>
+            {agents.map((agent) => {
+              const on = !disabledAgents[agent.id]
+              return (
+                <div key={agent.id} className="fynn-well flex items-center justify-between px-3.5 py-[11px] mb-[9px]">
+                  <div className="flex items-center gap-[11px] min-w-0">
+                    <AgentAvatar agent={agent} size={34} />
+                    <div className="min-w-0">
+                      <div className="text-[13px] font-semibold truncate" style={{ color: 'var(--text-h)' }}>{agent.name}</div>
+                      <div className="text-[11.5px] truncate" style={{ color: 'var(--text-m)' }}>{agentRole(agent)}</div>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{agent.name}</p>
-                    <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{agent.role}</p>
-                  </div>
+                  <button role="switch" aria-checked={on} aria-label={`${agent.name} ${on ? 'uitzetten' : 'aanzetten'}`}
+                    onClick={() => setDisabledAgents(s => ({ ...s, [agent.id]: on }))}
+                    className="w-11 h-6 rounded-full relative cursor-pointer transition-colors flex-none"
+                    style={{ background: on ? agent.color : 'var(--track)' }}>
+                    <span className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all" style={{ left: on ? 22 : 2 }} />
+                  </button>
                 </div>
-                <button onClick={() => setAgentStates(s => ({ ...s, [agent.id]: !s[agent.id] }))} className="transition-colors">
-                  {agentStates[agent.id] ? (
-                    <ToggleRight className="w-7 h-7" style={{ color: agent.color }} />
-                  ) : (
-                    <ToggleLeft className="w-7 h-7" style={{ color: 'var(--text-secondary)' }} />
-                  )}
-                </button>
+              )
+            })}
+          </div>
+
+          {/* Model list */}
+          <div className="fynn-card p-[22px] mb-[18px]">
+            <CardTitle icon={Sparkles} color="var(--fyn-purple)">Populaire OpenRouter-modellen</CardTitle>
+            {MODELS.map(m => (
+              <div key={m.model} className="fynn-well flex items-center justify-between gap-3 px-3.5 py-[11px] mb-2" style={{ borderRadius: 10 }}>
+                <div className="min-w-0">
+                  <code className="text-[12.5px]" style={{ color: 'var(--fyn-blue)' }}>{m.model}</code>
+                  <span className="text-xs ml-2" style={{ color: 'var(--text-m)' }}>{m.note}</span>
+                </div>
+                <span className="text-xs font-bold flex-none" style={{ color: '#10b981' }}>{m.cost}</span>
               </div>
             ))}
           </div>
-        </div>
 
-        {/* Model Info */}
-        <div className="glass-card p-5">
-          <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Popular OpenRouter Models</h3>
-          <div className="space-y-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
-            {[
-              { model: 'google/gemini-2.0-flash-001', note: 'Fast & cheap - great default', cost: '~$0.10/1M' },
-              { model: 'openai/gpt-4o-mini', note: 'Good quality, affordable', cost: '~$0.15/1M' },
-              { model: 'anthropic/claude-sonnet-4', note: 'Best for creative writing', cost: '~$3/1M' },
-              { model: 'meta-llama/llama-3.3-70b-instruct', note: 'Free tier available', cost: 'Free' },
-              { model: 'deepseek/deepseek-chat-v3-0324', note: 'Very capable & cheap', cost: '~$0.27/1M' },
-            ].map(m => (
-              <div key={m.model} className="flex items-center justify-between py-1.5 px-3 rounded"
-                style={{ background: 'var(--bg-primary)' }}>
-                <div>
-                  <code className="text-xs" style={{ color: 'var(--accent-blue)' }}>{m.model}</code>
-                  <span className="ml-2">{m.note}</span>
-                </div>
-                <span style={{ color: 'var(--accent-green)' }}>{m.cost}</span>
-              </div>
-            ))}
+          {/* Etsy setup guide */}
+          <div className="fynn-card p-[22px]">
+            <CardTitle icon={BookOpen} color="#ff9e4a">Etsy Seller App instellen</CardTitle>
+            <ol className="space-y-2 text-[12.5px] list-decimal list-inside" style={{ color: 'var(--text-m)' }}>
+              <li>Ga naar <a href="https://www.etsy.com/developers/your-apps" target="_blank" rel="noopener noreferrer">etsy.com/developers/your-apps</a></li>
+              <li>Klik op <b>&quot;Create a New App&quot;</b></li>
+              <li>Kies <b>&quot;Seller&quot;</b> als app-type (niet Personal)</li>
+              <li>Stel de callback-URL in op: <code className="px-1.5 py-0.5 rounded" style={{ background: 'var(--well)', color: 'var(--fyn-blue)' }}>http://localhost:3000/api/etsy/callback</code></li>
+              <li>Kopieer de <b>Keystring</b> (dit is je API-sleutel)</li>
+              <li>Plak hem hierboven en klik op &quot;Verbind Etsy&quot;</li>
+            </ol>
           </div>
         </div>
-
-        {/* Setup Guide */}
-        <div className="glass-card p-5">
-          <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Etsy Seller App Setup</h3>
-          <ol className="space-y-2 text-xs list-decimal list-inside" style={{ color: 'var(--text-secondary)' }}>
-            <li>Go to <a href="https://www.etsy.com/developers/your-apps" target="_blank" rel="noopener noreferrer" className="underline" style={{ color: 'var(--accent-blue)' }}>etsy.com/developers/your-apps</a></li>
-            <li>Click <strong>&quot;Create a New App&quot;</strong></li>
-            <li>Select <strong>&quot;Seller&quot;</strong> as the app type (not Personal)</li>
-            <li>Set the callback URL to: <code className="px-1.5 py-0.5 rounded" style={{ background: 'var(--bg-primary)', color: 'var(--accent-blue)' }}>http://localhost:3000/api/etsy/callback</code></li>
-            <li>Copy the <strong>Keystring</strong> (this is your API key)</li>
-            <li>Paste it above and click &quot;Connect Etsy Store&quot;</li>
-          </ol>
-        </div>
-      </div>
+      </PageBody>
     </>
   )
 }

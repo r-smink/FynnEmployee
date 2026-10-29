@@ -52,9 +52,9 @@ export function useEventStream(shopId: string) {
         // Add to activity feed for relevant events
         if (data.type === 'activity' || data.type === 'task_started' || data.type === 'task_completed' || data.type === 'task_failed') {
           const message = (data.data?.message as string) ||
-            (data.type === 'task_started' ? `Started: ${data.data?.title}` : '') ||
-            (data.type === 'task_completed' ? `Completed: ${data.data?.title}` : '') ||
-            (data.type === 'task_failed' ? `Failed: ${data.data?.error}` : '')
+            (data.type === 'task_started' ? `Gestart: ${data.data?.title}` : '') ||
+            (data.type === 'task_completed' ? `Voltooid: ${data.data?.title}` : '') ||
+            (data.type === 'task_failed' ? `Mislukt: ${data.data?.error}` : '')
 
           if (message) {
             setActivities(prev => [{

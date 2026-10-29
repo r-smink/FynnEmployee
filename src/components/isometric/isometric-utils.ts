@@ -1,41 +1,55 @@
-// Convert grid coordinates to isometric screen coordinates
-export const TILE_WIDTH = 200
-export const TILE_HEIGHT = 100
+import type { OfficeGrid, Room } from '@/lib/office'
 
-export function toIso(col: number, row: number): { x: number; y: number } {
+// Half tile size in screen units; a tile is a 200×100 diamond
+export const HW = 100
+export const HH = 50
+export const WALL = 54
+const MARGIN_X = 50
+const MARGIN_TOP = WALL + 14
+const MARGIN_BOTTOM = 44
+
+export interface Pt { x: number; y: number }
+
+export interface IsoLayout {
+  width: number
+  height: number
+  // grid node (col,row) -> screen point
+  P: (col: number, row: number) => Pt
+}
+
+export function isoLayout(grid: OfficeGrid): IsoLayout {
+  const offX = grid.rows * HW + MARGIN_X
+  const offY = MARGIN_TOP
   return {
-    x: (col - row) * (TILE_WIDTH / 2),
-    y: (col + row) * (TILE_HEIGHT / 2),
+    width: (grid.cols + grid.rows) * HW + MARGIN_X * 2,
+    height: (grid.cols + grid.rows) * HH + MARGIN_TOP + MARGIN_BOTTOM,
+    P: (col, row) => ({ x: (col - row) * HW + offX, y: (col + row) * HH + offY }),
   }
 }
 
-// Room definitions with grid positions
-export interface RoomDef {
-  id: string
-  name: string
-  agentTemplate: string  // which agent template_type belongs here
-  col: number
-  row: number
-  color: string
+const pt = (p: Pt) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`
+const up = (p: Pt) => `${p.x.toFixed(1)},${(p.y - WALL).toFixed(1)}`
+
+export function diamond(L: IsoLayout, col: number, row: number, w = 1, d = 1): string {
+  return `${pt(L.P(col, row))} ${pt(L.P(col + w, row))} ${pt(L.P(col + w, row + d))} ${pt(L.P(col, row + d))}`
 }
 
-export const ROOMS: RoomDef[] = [
-  { id: 'manager',     name: 'Manager Office',    agentTemplate: 'manager',     col: 1, row: 0, color: '#ffe04a' },
-  { id: 'design',      name: 'Design Studio',     agentTemplate: 'design',      col: 0, row: 1, color: '#9e4aff' },
-  { id: 'listing',     name: 'Listing Office',    agentTemplate: 'listing',     col: 2, row: 1, color: '#4a9eff' },
-  { id: 'analytics',   name: 'Analytics Lab',     agentTemplate: 'analytics',   col: 0, row: 2, color: '#ff4a9e' },
-  { id: 'fulfillment', name: 'Fulfillment Room',  agentTemplate: 'fulfillment', col: 1, row: 2, color: '#4aff9e' },
-  { id: 'support',     name: 'Support Desk',      agentTemplate: 'support',     col: 2, row: 2, color: '#ff9e4a' },
-]
-
-// Get center position for a room in screen coords
-export function getRoomCenter(room: RoomDef): { x: number; y: number } {
-  const iso = toIso(room.col, room.row)
-  return { x: iso.x, y: iso.y }
+export function roomGeometry(L: IsoLayout, room: Pick<Room, 'col' | 'row' | 'width' | 'depth'>) {
+  const { col, row, width: w, depth: d } = room
+  const E = L.P(col + w, row), S = L.P(col + w, row + d), W = L.P(col, row + d)
+  const C = L.P(col + w / 2, row + d / 2)
+  return {
+    floor: diamond(L, col, row, w, d),
+    leftWall: `${pt(W)} ${pt(S)} ${up(S)} ${up(W)}`,
+    rightWall: `${pt(S)} ${pt(E)} ${up(E)} ${up(S)}`,
+    center: C,
+    label: { x: C.x, y: S.y + 16 },
+    // free floor spots for decoration in bigger rooms
+    corners: [L.P(col + 0.3, row + d - 0.3), L.P(col + w - 0.3, row + 0.3)],
+  }
 }
 
-// SVG viewBox dimensions to fit all rooms
-export const VIEW_WIDTH = 900
-export const VIEW_HEIGHT = 500
-export const VIEW_OFFSET_X = VIEW_WIDTH / 2
-export const VIEW_OFFSET_Y = 60
+// Back-to-front paint order
+export function paintOrder<T extends Pick<Room, 'col' | 'row'>>(rooms: T[]): T[] {
+  return [...rooms].sort((a, b) => (a.col + a.row) - (b.col + b.row) || a.col - b.col)
+}
