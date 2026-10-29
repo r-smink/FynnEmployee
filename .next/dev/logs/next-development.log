@@ -1,2 +1,4 @@
-{"timestamp":"00:00:00.802","source":"Server","level":"LOG","message":""}
-{"timestamp":"00:00:00.804","source":"Server","level":"LOG","message":"✓ Generated AGENTS.md for AI agents. Set `agentRules: false` in next.config to disable."}
+{"timestamp":"00:00:08.045","source":"Server","level":"LOG","message":""}
+{"timestamp":"00:00:18.336","source":"Server","level":"ERROR","message":"Error: EPIPE: broken pipe, write"}
+{"timestamp":"00:00:18.337","source":"Server","level":"ERROR","message":"⨯ \"uncaughtException:\" Error: EPIPE: broken pipe, write"}
+{"timestamp":"00:00:18.337","source":"Server","level":"ERROR","message":"⨯ \"uncaughtException: \" Error: EPIPE: broken pipe, write"}
