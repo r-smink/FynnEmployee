@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { get, run } from '@/lib/db'
 import { engine } from '@/agents/engine'
+import type { Agent } from '@/agents/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,9 +20,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const values: unknown[] = []
 
   for (const [key, value] of Object.entries(body)) {
-    if (['name', 'role', 'description', 'color', 'custom_prompt'].includes(key)) {
+    if (['name', 'role', 'description', 'color', 'custom_prompt', 'model'].includes(key)) {
       updates.push(`${key} = ?`)
-      values.push(value)
+      // empty model/prompt means "use the default"
+      values.push((key === 'model' || key === 'custom_prompt') && typeof value === 'string' && !value.trim() ? null : value)
     }
   }
 
@@ -31,7 +33,17 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     run(`UPDATE agents SET ${updates.join(', ')} WHERE id = ? AND shop_id = ?`, ...values)
   }
 
-  const agent = get('SELECT * FROM agents WHERE id = ? AND shop_id = ?', agentId, shopId)
+  const agent = get<Agent>('SELECT * FROM agents WHERE id = ? AND shop_id = ?', agentId, shopId)
+
+  // Keep the running agent in sync so changes apply to its next task
+  const live = agent && engine.getShopAgents(shopId).get(agentId)
+  if (agent && live) {
+    live.name = agent.name
+    live.color = agent.color
+    live.customPrompt = agent.custom_prompt || undefined
+    live.model = agent.model || undefined
+  }
+
   return NextResponse.json(agent)
 }
 

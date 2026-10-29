@@ -46,6 +46,11 @@ export function AgentPanel({ agent, roomName }: { agent: AgentData; roomName?: s
         </div>
       </div>
 
+      <div className="fynn-well p-3 flex items-center justify-between gap-3">
+        <span className="text-[11.5px] flex-none" style={{ color: 'var(--text-m)' }}>AI-model</span>
+        <code className="text-[12px] truncate" style={{ color: agent.model ? 'var(--fyn-blue)' : 'var(--text-s)' }}>{agent.model || 'standaard'}</code>
+      </div>
+
       <div>
         <h4 className="text-xs font-bold uppercase tracking-[.05em] mb-2" style={{ color: 'var(--text-m)' }}>Recente activiteit</h4>
         <div className="space-y-1">

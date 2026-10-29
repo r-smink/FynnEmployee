@@ -19,6 +19,7 @@ export interface AgentConfig {
   name: string
   templateType: AgentTemplate
   customPrompt?: string
+  model?: string
   color?: string
 }
 
@@ -37,6 +38,7 @@ export interface Agent {
   is_custom: number
   is_manager: number
   custom_prompt: string | null
+  model: string | null
   position_x: number
   position_y: number
   created_at: string

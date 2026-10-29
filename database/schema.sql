@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS agents (
     is_custom       INTEGER DEFAULT 0,
     is_manager      INTEGER DEFAULT 0,
     custom_prompt   TEXT,
+    model           TEXT,
     position_x      REAL DEFAULT 0,
     position_y      REAL DEFAULT 0,
     created_at      TEXT DEFAULT (datetime('now')),

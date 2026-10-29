@@ -15,6 +15,8 @@ export interface AgentData {
   template_type: string
   is_manager: number
   is_custom: number
+  model: string | null
+  custom_prompt: string | null
   currentTask: {
     id: string
     title: string

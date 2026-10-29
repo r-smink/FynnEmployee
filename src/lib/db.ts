@@ -18,6 +18,7 @@ function createDb(): Database.Database {
     db.exec(schema)
   }
 
+
   // Seed default shop if shops table is empty
   const shopCount = db.prepare('SELECT COUNT(*) as count FROM shops').get() as { count: number }
   if (shopCount.count === 0) {
@@ -56,6 +57,16 @@ function seedShopInternal(database: Database.Database, shopId: string, shopName:
 }
 
 export const db = globalForDb.__fynnDb || (globalForDb.__fynnDb = createDb())
+
+// Columns added after the first release (CREATE TABLE IF NOT EXISTS won't add them).
+// Runs on every module load so a hot-reloaded dev server with a cached connection also migrates.
+function migrate(database: Database.Database) {
+  const agentCols = database.prepare('PRAGMA table_info(agents)').all() as { name: string }[]
+  if (!agentCols.some(c => c.name === 'model')) {
+    database.exec('ALTER TABLE agents ADD COLUMN model TEXT')
+  }
+}
+migrate(db)
 
 export function seedShop(shopId: string, shopName: string, slug?: string, description?: string) {
   const finalSlug = slug || shopName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')

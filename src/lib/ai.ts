@@ -48,8 +48,10 @@ export function getAiClient(): OpenAI | null {
   return client
 }
 
+export const DEFAULT_MODEL = 'anthropic/claude-haiku-5.5'
+
 export function getModel(): string {
-  return getSetting('openrouter_model') || 'google/gemini-2.0-flash-001'
+  return getSetting('openrouter_model') || DEFAULT_MODEL
 }
 
 export function isAiEnabled(): boolean {
@@ -59,14 +61,14 @@ export function isAiEnabled(): boolean {
 export async function aiChat(
   systemPrompt: string,
   userPrompt: string,
-  options?: { maxTokens?: number }
+  options?: { maxTokens?: number; model?: string }
 ): Promise<string | null> {
   const client = getAiClient()
   if (!client) return null
 
   try {
     const response = await client.chat.completions.create({
-      model: getModel(),
+      model: options?.model || getModel(),
       max_tokens: options?.maxTokens ?? 500,
       messages: [
         { role: 'system', content: systemPrompt },

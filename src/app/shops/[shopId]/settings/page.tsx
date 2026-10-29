@@ -7,6 +7,8 @@ import { Topbar } from '@/components/layout/topbar'
 import { PageBody } from '@/components/layout/app-shell'
 import { AgentAvatar } from '@/components/dashboard/agent-card'
 import { useAgents } from '@/hooks/use-agents'
+import { ModelPicker } from '@/components/models/ModelPicker'
+import { useModels, featuredModels, formatPrice } from '@/hooks/use-models'
 import { agentRole } from '@/lib/labels'
 
 interface ApiKeyField {
@@ -25,20 +27,12 @@ const apiKeys: ApiKeyField[] = [
     description: 'Voedt alle AI-agents. Gratis sleutel via openrouter.ai/keys',
   },
   {
-    label: 'OpenRouter-model',
+    label: 'Standaardmodel',
     key: 'openrouter_model',
-    placeholder: 'google/gemini-2.0-flash-001',
-    description: 'Standaard: google/gemini-2.0-flash-001 (snel & goedkoop)',
+    placeholder: '',
+    description: 'Gebruikt door elke agent zonder eigen model. Per agent kies je een model op de Agents-pagina.',
     type: 'text',
   },
-]
-
-const MODELS = [
-  { model: 'google/gemini-2.0-flash-001', note: 'Snel & goedkoop — top default', cost: '~$0,10/1M' },
-  { model: 'openai/gpt-4o-mini', note: 'Goede kwaliteit, betaalbaar', cost: '~$0,15/1M' },
-  { model: 'anthropic/claude-sonnet-4', note: 'Beste voor creatief schrijven', cost: '~$3/1M' },
-  { model: 'meta-llama/llama-3.3-70b-instruct', note: 'Gratis tier beschikbaar', cost: 'Gratis' },
-  { model: 'deepseek/deepseek-chat-v3-0324', note: 'Zeer capabel & goedkoop', cost: '~$0,27/1M' },
 ]
 
 interface EtsyShop {
@@ -76,6 +70,7 @@ export default function SettingsPage({ params }: { params: Promise<{ shopId: str
 function SettingsContent({ shopId }: { shopId: string }) {
   const searchParams = useSearchParams()
   const { agents } = useAgents(shopId)
+  const { models, defaultModel, live } = useModels()
   const [values, setValues] = useState<Record<string, string>>({})
   const [disabledAgents, setDisabledAgents] = useState<Record<string, boolean>>({})
   const [saving, setSaving] = useState(false)
@@ -108,6 +103,7 @@ function SettingsContent({ shopId }: { shopId: string }) {
   useEffect(() => {
     fetch(`/api/shops/${shopId}/settings`).then(r => r.json()).then(data => {
       setAiEnabled(data.ai_enabled === 'true')
+      if (data.openrouter_model) setValues(v => ({ ...v, openrouter_model: v.openrouter_model ?? data.openrouter_model }))
     }).catch(() => {})
     fetchEtsyShop()
     fetchPrintfulStore()
@@ -330,8 +326,12 @@ function SettingsContent({ shopId }: { shopId: string }) {
               <div key={field.key} className="mb-4">
                 <label className="fynn-label">{field.label}</label>
                 {field.description && <div className="fynn-hint">{field.description}</div>}
-                <input className="fynn-inp" type={field.type || 'password'} placeholder={field.placeholder}
-                  value={values[field.key] || ''} onChange={e => setValues(v => ({ ...v, [field.key]: e.target.value }))} />
+                {field.key === 'openrouter_model' ? (
+                  <ModelPicker value={values.openrouter_model ?? defaultModel} onChange={m => setValues(v => ({ ...v, openrouter_model: m }))} />
+                ) : (
+                  <input className="fynn-inp" type={field.type || 'password'} placeholder={field.placeholder}
+                    value={values[field.key] || ''} onChange={e => setValues(v => ({ ...v, [field.key]: e.target.value }))} />
+                )}
               </div>
             ))}
             <div className="flex flex-wrap gap-2.5 mt-1">
@@ -356,7 +356,9 @@ function SettingsContent({ shopId }: { shopId: string }) {
                     <AgentAvatar agent={agent} size={34} />
                     <div className="min-w-0">
                       <div className="text-[13px] font-semibold truncate" style={{ color: 'var(--text-h)' }}>{agent.name}</div>
-                      <div className="text-[11.5px] truncate" style={{ color: 'var(--text-m)' }}>{agentRole(agent)}</div>
+                      <div className="text-[11.5px] truncate" style={{ color: 'var(--text-m)' }}>
+                        {agentRole(agent)} · {agent.model ? (models.find(m => m.id === agent.model)?.name || agent.model) : 'standaardmodel'}
+                      </div>
                     </div>
                   </div>
                   <button role="switch" aria-checked={on} aria-label={`${agent.name} ${on ? 'uitzetten' : 'aanzetten'}`}
@@ -372,15 +374,19 @@ function SettingsContent({ shopId }: { shopId: string }) {
 
           {/* Model list */}
           <div className="fynn-card p-[22px] mb-[18px]">
-            <CardTitle icon={Sparkles} color="var(--fyn-purple)">Populaire OpenRouter-modellen</CardTitle>
-            {MODELS.map(m => (
-              <div key={m.model} className="fynn-well flex items-center justify-between gap-3 px-3.5 py-[11px] mb-2" style={{ borderRadius: 10 }}>
-                <div className="min-w-0">
-                  <code className="text-[12.5px]" style={{ color: 'var(--fyn-blue)' }}>{m.model}</code>
-                  <span className="text-xs ml-2" style={{ color: 'var(--text-m)' }}>{m.note}</span>
+            <CardTitle icon={Sparkles} color="var(--fyn-purple)">Nieuwste OpenRouter-modellen</CardTitle>
+            <div className="fynn-hint -mt-2 mb-3">
+              {live ? 'Live van openrouter.ai — prijs per 1M tokens (input / output). Klik om als standaardmodel te kiezen.' : 'Modellijst van OpenRouter is nu niet bereikbaar.'}
+            </div>
+            {featuredModels(models).map(m => (
+              <button key={m.id} type="button" onClick={() => setValues(v => ({ ...v, openrouter_model: m.id }))}
+                className="fynn-well w-full flex items-center justify-between gap-3 px-3.5 py-[11px] mb-2 text-left cursor-pointer" style={{ borderRadius: 10 }}>
+                <div className="min-w-0 truncate">
+                  <code className="text-[12.5px]" style={{ color: 'var(--fyn-blue)' }}>{m.id}</code>
+                  <span className="text-xs ml-2" style={{ color: 'var(--text-m)' }}>{m.name} · {Math.round(m.context / 1000)}K context</span>
                 </div>
-                <span className="text-xs font-bold flex-none" style={{ color: '#10b981' }}>{m.cost}</span>
-              </div>
+                <span className="text-xs font-bold flex-none" style={{ color: '#10b981' }}>{formatPrice(m)}</span>
+              </button>
             ))}
           </div>
 

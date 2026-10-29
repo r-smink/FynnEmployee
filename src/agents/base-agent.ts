@@ -10,6 +10,7 @@ export abstract class BaseAgent {
   name: string
   templateType: string
   customPrompt: string | undefined
+  model: string | undefined  // OpenRouter model id; falls back to the global setting
   color: string | undefined
   status: AgentStatus = 'idle'
   currentTask: Task | null = null
@@ -20,6 +21,7 @@ export abstract class BaseAgent {
     this.name = config.name
     this.templateType = config.templateType
     this.customPrompt = config.customPrompt
+    this.model = config.model
     this.color = config.color
   }
 
@@ -134,7 +136,7 @@ export abstract class BaseAgent {
     this.log('Consulting AI for best approach...', 'thinking', task.id)
     this.updateProgress(task.id, 30, 'Consulting AI...')
 
-    const result = await aiChat(this.getEffectiveSystemPrompt(), this.getTaskPrompt(task))
+    const result = await aiChat(this.getEffectiveSystemPrompt(), this.getTaskPrompt(task), { model: this.model })
 
     if (result) {
       this.updateProgress(task.id, 60, 'Processing AI response...')

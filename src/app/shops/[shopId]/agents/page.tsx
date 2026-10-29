@@ -1,14 +1,16 @@
 'use client'
 
 import { use, useState } from 'react'
-import { Plus, Trash2, Pencil, X, Loader2, Users } from 'lucide-react'
+import { Plus, Trash2, Pencil, X, Loader2, Users, Cpu } from 'lucide-react'
 import { Topbar } from '@/components/layout/topbar'
 import { PageBody } from '@/components/layout/app-shell'
 import { AgentAvatar, AgentStatusPill } from '@/components/dashboard/agent-card'
 import { useAgents, type AgentData } from '@/hooks/use-agents'
+import { ModelPicker } from '@/components/models/ModelPicker'
+import { useModels } from '@/hooks/use-models'
 import { agentRole } from '@/lib/labels'
 
-const EMPTY_FORM = { name: '', role: '', description: '', color: '#8F39AC', customPrompt: '' }
+const EMPTY_FORM = { name: '', role: '', description: '', color: '#8F39AC', customPrompt: '', model: '' }
 
 export default function AgentsPage({ params }: { params: Promise<{ shopId: string }> }) {
   const { shopId } = use(params)
@@ -17,6 +19,15 @@ export default function AgentsPage({ params }: { params: Promise<{ shopId: strin
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
+  const { models, defaultModel } = useModels()
+  const editingAgent = editingId ? agents.find(a => a.id === editingId) : undefined
+  // Built-in agents keep their name and role; only model, prompt and color are editable
+  const builtIn = editingAgent?.is_custom === 0
+
+  const modelLabel = (id: string | null) => {
+    const effective = id || defaultModel
+    return models.find(m => m.id === effective)?.name || effective
+  }
 
   const closeForm = () => { setShowCreate(false); setEditingId(null); setForm(EMPTY_FORM) }
 
@@ -33,6 +44,7 @@ export default function AgentsPage({ params }: { params: Promise<{ shopId: strin
           description: form.description,
           color: form.color,
           customPrompt: form.customPrompt,
+          model: form.model,
         }),
       })
       closeForm()
@@ -53,6 +65,7 @@ export default function AgentsPage({ params }: { params: Promise<{ shopId: strin
           description: form.description,
           color: form.color,
           custom_prompt: form.customPrompt,
+          model: form.model,
         }),
       })
       closeForm()
@@ -69,7 +82,7 @@ export default function AgentsPage({ params }: { params: Promise<{ shopId: strin
     } catch {}
   }
 
-  const startEdit = (agent: AgentData & { custom_prompt?: string | null }) => {
+  const startEdit = (agent: AgentData) => {
     setEditingId(agent.id)
     setShowCreate(false)
     setForm({
@@ -78,6 +91,7 @@ export default function AgentsPage({ params }: { params: Promise<{ shopId: strin
       description: agent.description || '',
       color: agent.color,
       customPrompt: agent.custom_prompt || '',
+      model: agent.model || '',
     })
   }
 
@@ -98,12 +112,13 @@ export default function AgentsPage({ params }: { params: Promise<{ shopId: strin
         {(showCreate || editingId) && (
           <div className="fynn-card p-[22px] mb-[18px]">
             <div className="flex items-center justify-between mb-4">
-              <h4 className="fynn-section-title">{editingId ? 'Agent bewerken' : 'Nieuwe agent'}</h4>
+              <h4 className="fynn-section-title">{editingAgent ? `${editingAgent.name} bewerken` : 'Nieuwe agent'}</h4>
               <button onClick={closeForm} className="cursor-pointer" aria-label="Sluiten">
                 <X className="w-4 h-4" style={{ color: 'var(--text-m)' }} />
               </button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {!builtIn && <>
               <div>
                 <label className="fynn-label">Naam</label>
                 <input className="fynn-inp" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Naam van de agent…" />
@@ -116,8 +131,15 @@ export default function AgentsPage({ params }: { params: Promise<{ shopId: strin
                 <label className="fynn-label">Omschrijving</label>
                 <input className="fynn-inp" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Wat doet deze agent?" />
               </div>
+              </>}
+              <div className="md:col-span-2">
+                <label className="fynn-label">AI-model</label>
+                <div className="fynn-hint">Kies per agent een OpenRouter-model, bijvoorbeeld een creatief model voor design en een goedkoop model voor analyses.</div>
+                <ModelPicker value={form.model} onChange={model => setForm(f => ({ ...f, model }))} allowDefault />
+              </div>
               <div className="md:col-span-2">
                 <label className="fynn-label">Eigen prompt (optioneel)</label>
+                {builtIn && <div className="fynn-hint">Leeg laten om de ingebouwde prompt van {editingAgent?.name} te gebruiken.</div>}
                 <textarea className="fynn-inp" rows={3} value={form.customPrompt} onChange={e => setForm(f => ({ ...f, customPrompt: e.target.value }))}
                   placeholder="Eigen systeemprompt voor deze agent…" />
               </div>
@@ -131,7 +153,7 @@ export default function AgentsPage({ params }: { params: Promise<{ shopId: strin
               </div>
             </div>
             <div className="mt-[18px] flex items-center gap-2.5">
-              <button className="fynn-btn" disabled={saving || !form.name.trim()}
+              <button className="fynn-btn" disabled={saving || (!builtIn && !form.name.trim())}
                 onClick={() => editingId ? updateAgent(editingId) : createAgent()}>
                 {saving && <Loader2 className="w-4 h-4 animate-spin" />}
                 {editingId ? 'Wijzigingen opslaan' : 'Agent aanmaken'}
@@ -160,22 +182,28 @@ export default function AgentsPage({ params }: { params: Promise<{ shopId: strin
                   <AgentStatusPill agent={agent} />
                 </div>
                 <p className="text-[12.5px] mb-3.5 line-clamp-2 min-h-9" style={{ color: 'var(--text-m)' }}>{agent.description}</p>
+                <div className="flex items-center gap-1.5 mb-3.5 text-[11.5px] min-w-0" title={agent.model || `Standaard: ${defaultModel}`}>
+                  <Cpu className="w-3.5 h-3.5 flex-none" style={{ color: agent.model ? 'var(--fyn-purple)' : 'var(--text-s)' }} />
+                  <span className="truncate font-semibold" style={{ color: agent.model ? 'var(--text-b)' : 'var(--text-s)' }}>
+                    {modelLabel(agent.model)}{!agent.model && ' (standaard)'}
+                  </span>
+                </div>
                 <div className="flex items-center justify-between pt-[13px]" style={{ borderTop: '1px solid var(--divide)' }}>
                   <span className="text-xs" style={{ color: 'var(--text-m)' }}>
                     <b style={{ color: agent.color }}>{agent.tasks_completed || 0}</b> taken voltooid
                   </span>
-                  {agent.is_custom === 1 && (
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => startEdit(agent)} className="w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer"
-                        style={{ background: 'var(--well)' }} title="Bewerken">
-                        <Pencil className="w-3.5 h-3.5" style={{ color: 'var(--fyn-blue)' }} />
-                      </button>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => startEdit(agent)} className="w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer"
+                      style={{ background: 'var(--well)' }} title="Bewerken">
+                      <Pencil className="w-3.5 h-3.5" style={{ color: 'var(--fyn-blue)' }} />
+                    </button>
+                    {agent.is_custom === 1 && (
                       <button onClick={() => deleteAgent(agent.id)} className="w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer"
                         style={{ background: 'var(--well)' }} title="Verwijderen">
                         <Trash2 className="w-3.5 h-3.5" style={{ color: '#ef4444' }} />
                       </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
             ))}

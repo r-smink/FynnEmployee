@@ -1,12 +1,3 @@
 {
-  "/api/shops/[shopId]/rooms/route": "app/api/shops/[shopId]/rooms/route.js",
-  "/api/shops/route": "app/api/shops/route.js",
-  "/api/settings/route": "app/api/settings/route.js",
-  "/api/shops/[shopId]/agents/route": "app/api/shops/[shopId]/agents/route.js",
-  "/api/shops/[shopId]/orders/route": "app/api/shops/[shopId]/orders/route.js",
-  "/api/shops/[shopId]/stream/route": "app/api/shops/[shopId]/stream/route.js",
-  "/api/shops/[shopId]/settings/route": "app/api/shops/[shopId]/settings/route.js",
-  "/api/shops/[shopId]/products/route": "app/api/shops/[shopId]/products/route.js",
-  "/shops/[shopId]/dashboard/page": "app/shops/[shopId]/dashboard/page.js",
-  "/shops/[shopId]/office/page": "app/shops/[shopId]/office/page.js"
+  "/api/models/route": "app/api/models/route.js"
 }

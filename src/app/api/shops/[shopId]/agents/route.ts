@@ -32,10 +32,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const id = body.id || uuid().substring(0, 8)
 
   run(
-    `INSERT INTO agents (id, shop_id, name, role, description, color, template_type, is_custom, custom_prompt, avatar_url)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+    `INSERT INTO agents (id, shop_id, name, role, description, color, template_type, is_custom, custom_prompt, model, avatar_url)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`,
     id, shopId, body.name, body.role || 'Custom Agent', body.description || '',
     body.color || '#8888aa', body.templateType || 'custom', body.customPrompt || null,
+    typeof body.model === 'string' && body.model.trim() ? body.model.trim() : null,
     `/agents/custom.svg`
   )
 

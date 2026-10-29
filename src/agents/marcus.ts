@@ -47,7 +47,7 @@ Keep responses under 250 words. Focus on search visibility and conversion.`
     this.log('Generating listing content with AI...', 'thinking', task.id)
     this.updateProgress(task.id, 30, 'Consulting AI...')
 
-    const result = await aiChat(this.getEffectiveSystemPrompt(), this.getTaskPrompt(task))
+    const result = await aiChat(this.getEffectiveSystemPrompt(), this.getTaskPrompt(task), { model: this.model })
 
     if (!result) {
       this.log('AI unavailable, running simulation...', 'warning', task.id)
