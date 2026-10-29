@@ -33,6 +33,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     run(`UPDATE agents SET ${updates.join(', ')} WHERE id = ? AND shop_id = ?`, ...values)
   }
 
+  // On/off goes through the live agent so the engine stops (or resumes) picking up tasks
+  if (typeof body.enabled === 'boolean') {
+    const live = engine.getShopAgents(shopId).get(agentId)
+    if (live) live.setEnabled(body.enabled)
+    else run('UPDATE agents SET enabled = ? WHERE id = ? AND shop_id = ?', body.enabled ? 1 : 0, agentId, shopId)
+  }
+
   const agent = get<Agent>('SELECT * FROM agents WHERE id = ? AND shop_id = ?', agentId, shopId)
 
   // Keep the running agent in sync so changes apply to its next task

@@ -67,6 +67,9 @@ function migrate(database: Database.Database) {
   if (!agentCols.some(c => c.name === 'model')) {
     database.exec('ALTER TABLE agents ADD COLUMN model TEXT')
   }
+  if (!agentCols.some(c => c.name === 'enabled')) {
+    database.exec('ALTER TABLE agents ADD COLUMN enabled INTEGER DEFAULT 1')
+  }
 }
 migrate(db)
 

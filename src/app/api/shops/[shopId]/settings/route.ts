@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSetting, setSetting } from '@/lib/ai'
+import { getSetting, setSetting, getAiMode, hasAiKey, isAiEnabled } from '@/lib/ai'
 import { getShopSetting, setShopSetting } from '@/lib/shop-settings'
 
 export const dynamic = 'force-dynamic'
@@ -19,7 +19,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ sho
     const value = getShopSetting(shopId, key)
     settings[key] = value ? `${value.substring(0, 6)}...${value.substring(value.length - 4)}` : null
   }
-  settings['ai_enabled'] = getSetting('openrouter_api_key') ? 'true' : 'false'
+  settings['ai_enabled'] = isAiEnabled() ? 'true' : 'false'
+  settings['ai_mode'] = getAiMode()
+  settings['has_api_key'] = hasAiKey() ? 'true' : 'false'
 
   return NextResponse.json(settings)
 }

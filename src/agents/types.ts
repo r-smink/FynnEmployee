@@ -21,6 +21,7 @@ export interface AgentConfig {
   customPrompt?: string
   model?: string
   color?: string
+  enabled?: boolean
 }
 
 export interface Agent {
@@ -39,6 +40,7 @@ export interface Agent {
   is_manager: number
   custom_prompt: string | null
   model: string | null
+  enabled: number
   position_x: number
   position_y: number
   created_at: string

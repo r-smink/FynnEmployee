@@ -44,7 +44,7 @@ class AgentEngine {
     const timer = setTimeout(async () => {
       if (!this.running.get(shopId)) return
 
-      if (agent.status === 'idle') {
+      if (agent.enabled && agent.status === 'idle') {
         try {
           const task = agent.createTask()
           await agent.processTask(task)

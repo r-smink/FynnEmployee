@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 
 export interface AgentData {
   id: string
+  shop_id: string
   name: string
   role: string
   description: string
@@ -16,6 +17,7 @@ export interface AgentData {
   is_manager: number
   is_custom: number
   model: string | null
+  enabled: number
   custom_prompt: string | null
   currentTask: {
     id: string
