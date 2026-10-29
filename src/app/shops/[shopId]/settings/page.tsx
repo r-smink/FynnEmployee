@@ -1,6 +1,7 @@
 'use client'
 
 import { use, useState, useEffect, Suspense } from 'react'
+import { EtsyCallbackUrl } from '@/components/etsy-callback-url'
 import { useSearchParams } from 'next/navigation'
 import { Key, Sparkles, Zap, Check, Loader2, ExternalLink, Store, Link2, ShoppingBag, Settings2, BookOpen } from 'lucide-react'
 import { Topbar } from '@/components/layout/topbar'
@@ -397,7 +398,7 @@ function SettingsContent({ shopId }: { shopId: string }) {
               <li>Ga naar <a href="https://www.etsy.com/developers/your-apps" target="_blank" rel="noopener noreferrer">etsy.com/developers/your-apps</a></li>
               <li>Klik op <b>&quot;Create a New App&quot;</b></li>
               <li>Kies <b>&quot;Seller&quot;</b> als app-type (niet Personal)</li>
-              <li>Stel de callback-URL in op: <code className="px-1.5 py-0.5 rounded" style={{ background: 'var(--well)', color: 'var(--fyn-blue)' }}>http://localhost:3000/api/etsy/callback</code></li>
+              <li>Stel de callback-URL in op: <code className="px-1.5 py-0.5 rounded" style={{ background: 'var(--well)', color: 'var(--fyn-blue)' }}><EtsyCallbackUrl /></code></li>
               <li>Kopieer de <b>Keystring</b> (dit is je API-sleutel)</li>
               <li>Plak hem hierboven en klik op &quot;Verbind Etsy&quot;</li>
             </ol>

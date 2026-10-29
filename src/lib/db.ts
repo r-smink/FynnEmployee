@@ -6,7 +6,9 @@ import { DEFAULT_AGENT_TEMPLATES } from '@/agents/types'
 const globalForDb = globalThis as unknown as { __fynnDb: Database.Database }
 
 function createDb(): Database.Database {
-  const dbPath = path.join(process.cwd(), 'fynnemployee.db')
+  // DATABASE_PATH points at a persistent volume in production (e.g. /data/fynnemployee.db on Railway)
+  const dbPath = process.env.DATABASE_PATH || path.join(process.cwd(), 'fynnemployee.db')
+  fs.mkdirSync(path.dirname(dbPath), { recursive: true })
   const db = new Database(dbPath)
   db.pragma('journal_mode = WAL')
   db.pragma('foreign_keys = ON')

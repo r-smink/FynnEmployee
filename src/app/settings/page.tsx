@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, Suspense } from 'react'
+import { EtsyCallbackUrl } from '@/components/etsy-callback-url'
 import { useSearchParams } from 'next/navigation'
 import { Topbar } from '@/components/layout/topbar'
 import { Key, ToggleLeft, ToggleRight, Bot, Sparkles, Check, Loader2, ExternalLink, Store, Link2, ShoppingBag } from 'lucide-react'
@@ -491,7 +492,7 @@ function SettingsContent() {
             <li>Go to <a href="https://www.etsy.com/developers/your-apps" target="_blank" rel="noopener noreferrer" className="underline" style={{ color: 'var(--accent-blue)' }}>etsy.com/developers/your-apps</a></li>
             <li>Click <strong>"Create a New App"</strong></li>
             <li>Select <strong>"Seller"</strong> as the app type (not Personal)</li>
-            <li>Set the callback URL to: <code className="px-1.5 py-0.5 rounded" style={{ background: 'var(--bg-primary)', color: 'var(--accent-blue)' }}>http://localhost:3000/api/etsy/callback</code></li>
+            <li>Set the callback URL to: <code className="px-1.5 py-0.5 rounded" style={{ background: 'var(--bg-primary)', color: 'var(--accent-blue)' }}><EtsyCallbackUrl /></code></li>
             <li>Copy the <strong>Keystring</strong> (this is your API key)</li>
             <li>Paste it above and click "Connect Etsy Store"</li>
           </ol>
