@@ -8,6 +8,7 @@ import { Topbar } from '@/components/layout/topbar'
 import { useAiMode, SETTINGS_CHANGED_EVENT } from '@/hooks/use-ai-mode'
 import { PageBody } from '@/components/layout/app-shell'
 import { AgentAvatar } from '@/components/dashboard/agent-card'
+import { AgentToggle } from '@/components/agents/AgentToggle'
 import { useAgents } from '@/hooks/use-agents'
 import { ModelPicker } from '@/components/models/ModelPicker'
 import { useModels, featuredModels, formatPrice } from '@/hooks/use-models'
@@ -71,10 +72,11 @@ export default function SettingsPage({ params }: { params: Promise<{ shopId: str
 
 function SettingsContent({ shopId }: { shopId: string }) {
   const searchParams = useSearchParams()
-  const { agents } = useAgents(shopId)
+  const { agents, refresh: refreshAgents } = useAgents(shopId)
   const { models, defaultModel, live } = useModels()
   const [values, setValues] = useState<Record<string, string>>({})
-  const [disabledAgents, setDisabledAgents] = useState<Record<string, boolean>>({})
+  // Masked values of keys already stored on the server (the real key is never sent back)
+  const [storedKeys, setStoredKeys] = useState<Record<string, string | null>>({})
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const { live: aiEnabled, hasApiKey } = useAiMode()
@@ -102,10 +104,14 @@ function SettingsContent({ shopId }: { shopId: string }) {
     }
   }, [searchParams])
 
-  useEffect(() => {
+  const fetchSettings = () =>
     fetch(`/api/shops/${shopId}/settings`).then(r => r.json()).then(data => {
+      setStoredKeys(data)
       if (data.openrouter_model) setValues(v => ({ ...v, openrouter_model: v.openrouter_model ?? data.openrouter_model }))
     }).catch(() => {})
+
+  useEffect(() => {
+    fetchSettings()
     fetchEtsyShop()
     fetchPrintfulStore()
   }, [shopId])
@@ -158,6 +164,9 @@ function SettingsContent({ shopId }: { shopId: string }) {
         body: JSON.stringify(payload),
       })
       setSaved(true)
+      // Clear typed keys so the fields show the stored (masked) value again
+      setValues(v => ({ openrouter_model: v.openrouter_model }))
+      await fetchSettings()
       window.dispatchEvent(new Event(SETTINGS_CHANGED_EVENT))
       setTimeout(() => setSaved(false), 3000)
     } catch {}
@@ -327,12 +336,18 @@ function SettingsContent({ shopId }: { shopId: string }) {
             <CardTitle icon={Key} color="var(--fyn-blue)">API-sleutels</CardTitle>
             {apiKeys.map((field) => (
               <div key={field.key} className="mb-4">
-                <label className="fynn-label">{field.label}</label>
+                <label className="fynn-label flex items-center gap-2">
+                  {field.label}
+                  {field.key !== 'openrouter_model' && storedKeys[field.key] && (
+                    <span className="fynn-pill" style={connectedPill}><Check className="w-3 h-3" /> Opgeslagen</span>
+                  )}
+                </label>
                 {field.description && <div className="fynn-hint">{field.description}</div>}
                 {field.key === 'openrouter_model' ? (
                   <ModelPicker value={values.openrouter_model ?? defaultModel} onChange={m => setValues(v => ({ ...v, openrouter_model: m }))} />
                 ) : (
-                  <input className="fynn-inp" type={field.type || 'password'} placeholder={field.placeholder}
+                  <input className="fynn-inp" type={field.type || 'password'}
+                    placeholder={storedKeys[field.key] ? `${storedKeys[field.key]}  (typ om te vervangen)` : field.placeholder}
                     value={values[field.key] || ''} onChange={e => setValues(v => ({ ...v, [field.key]: e.target.value }))} />
                 )}
               </div>
@@ -351,9 +366,7 @@ function SettingsContent({ shopId }: { shopId: string }) {
           {/* Agent controls */}
           <div className="fynn-card p-[22px] mb-[18px]">
             <CardTitle icon={Settings2} color="var(--fyn-purple)">Agent-besturing</CardTitle>
-            {agents.map((agent) => {
-              const on = !disabledAgents[agent.id]
-              return (
+            {agents.map((agent) => (
                 <div key={agent.id} className="fynn-well flex items-center justify-between px-3.5 py-[11px] mb-[9px]">
                   <div className="flex items-center gap-[11px] min-w-0">
                     <AgentAvatar agent={agent} size={34} />
@@ -364,15 +377,9 @@ function SettingsContent({ shopId }: { shopId: string }) {
                       </div>
                     </div>
                   </div>
-                  <button role="switch" aria-checked={on} aria-label={`${agent.name} ${on ? 'uitzetten' : 'aanzetten'}`}
-                    onClick={() => setDisabledAgents(s => ({ ...s, [agent.id]: on }))}
-                    className="w-11 h-6 rounded-full relative cursor-pointer transition-colors flex-none"
-                    style={{ background: on ? agent.color : 'var(--track)' }}>
-                    <span className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all" style={{ left: on ? 22 : 2 }} />
-                  </button>
+                  <AgentToggle agent={agent} onChange={refreshAgents} />
                 </div>
-              )
-            })}
+            ))}
           </div>
 
           {/* Model list */}
