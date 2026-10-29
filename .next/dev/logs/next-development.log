@@ -1,4 +1,7 @@
-{"timestamp":"00:00:08.045","source":"Server","level":"LOG","message":""}
-{"timestamp":"00:00:18.336","source":"Server","level":"ERROR","message":"Error: EPIPE: broken pipe, write"}
-{"timestamp":"00:00:18.337","source":"Server","level":"ERROR","message":"⨯ \"uncaughtException:\" Error: EPIPE: broken pipe, write"}
-{"timestamp":"00:00:18.337","source":"Server","level":"ERROR","message":"⨯ \"uncaughtException: \" Error: EPIPE: broken pipe, write"}
+{"timestamp":"00:00:03.760","source":"Server","level":"LOG","message":""}
+{"timestamp":"00:01:19.847","source":"Server","level":"LOG","message":"○ Compiling /dashboard/page ..."}
+{"timestamp":"00:12:55.025","source":"Browser","level":"INFO","message":"Download the React DevTools for a better development experience: https://react.dev/link/react-devtools"}
+{"timestamp":"00:12:59.790","source":"Server","level":"ERROR","message":"Error: EPIPE: broken pipe, write"}
+{"timestamp":"00:12:59.791","source":"Server","level":"ERROR","message":"⨯ \"uncaughtException:\" Error: EPIPE: broken pipe, write"}
+{"timestamp":"00:12:59.792","source":"Server","level":"ERROR","message":"⨯ \"uncaughtException: \" Error: EPIPE: broken pipe, write"}
+{"timestamp":"00:15:00.870","source":"Server","level":"WARN","message":"⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload"}

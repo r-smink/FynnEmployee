@@ -1,15 +1,18 @@
 globalThis.__BUILD_MANIFEST = {
-  "pages": {
-    "/_app": []
-  },
+  "polyfillFiles": [
+    "static/chunks/polyfills.js"
+  ],
   "devFiles": [],
-  "polyfillFiles": [],
   "lowPriorityFiles": [
     "static/development/_buildManifest.js",
-    "static/development/_ssgManifest.js",
-    "static/development/_clientMiddlewareManifest.js"
+    "static/development/_ssgManifest.js"
   ],
-  "rootMainFiles": [],
+  "rootMainFiles": [
+    "static/chunks/webpack.js",
+    "static/chunks/main-app.js"
+  ],
   "rootMainFilesTree": {},
-  "pagesChunkGroupBootstrapParams": {}
+  "pages": {
+    "/_app": []
+  }
 };

@@ -1,3 +1,7 @@
 {
-  "/api/agents/route": "app/api/agents/route.js"
+  "/api/settings/route": "app/api/settings/route.js",
+  "/api/agents/route": "app/api/agents/route.js",
+  "/api/stream/route": "app/api/stream/route.js",
+  "/page": "app/page.js",
+  "/dashboard/page": "app/dashboard/page.js"
 }
