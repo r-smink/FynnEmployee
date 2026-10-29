@@ -1,9 +1,9 @@
 import { BaseAgent } from './base-agent'
-import type { Task, SimulationStep, TaskType } from './types'
+import type { AgentConfig, Task, SimulationStep, TaskType } from './types'
 
 export class NovaAgent extends BaseAgent {
-  constructor() {
-    super('nova', 'Nova')
+  constructor(config: AgentConfig) {
+    super(config)
   }
 
   getSystemPrompt(): string {

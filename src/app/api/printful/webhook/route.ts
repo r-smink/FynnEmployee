@@ -28,6 +28,7 @@ export async function POST(request: NextRequest) {
           )
 
           emitAgentEvent({
+            shopId: 'default',
             agentId: 'aria',
             type: 'activity',
             data: {
@@ -67,6 +68,7 @@ export async function POST(request: NextRequest) {
           )
 
           emitAgentEvent({
+            shopId: 'default',
             agentId: 'aria',
             type: 'activity',
             data: {
@@ -82,6 +84,7 @@ export async function POST(request: NextRequest) {
       case 'order_failed': {
         const { order, reason } = data
         emitAgentEvent({
+          shopId: 'default',
           agentId: 'aria',
           type: 'activity',
           data: {

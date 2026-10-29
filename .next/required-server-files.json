@@ -105,7 +105,7 @@
         "transform": "lodash/{{member}}"
       }
     },
-    "outputFileTracingRoot": "C:\\WorkSpace\\FynnEmployee",
+    "outputFileTracingRoot": "c:\\WorkSpace\\FynnEmployee",
     "enablePrerenderSourceMaps": true,
     "cacheComponents": false,
     "cacheLife": {
@@ -337,13 +337,13 @@
     "serverExternalPackages": [
       "better-sqlite3"
     ],
-    "repoRoot": "C:\\WorkSpace\\FynnEmployee",
+    "repoRoot": "c:\\WorkSpace\\FynnEmployee",
     "turbopack": {
-      "root": "C:\\WorkSpace\\FynnEmployee"
+      "root": "c:\\WorkSpace\\FynnEmployee"
     },
     "distDirRoot": ".next"
   },
-  "appDir": "C:\\WorkSpace\\FynnEmployee",
+  "appDir": "c:\\WorkSpace\\FynnEmployee",
   "relativeAppDir": "",
   "files": [
     ".next\\package.json",

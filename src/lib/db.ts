@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3'
 import path from 'path'
 import fs from 'fs'
+import { DEFAULT_AGENT_TEMPLATES } from '@/agents/types'
 
 const globalForDb = globalThis as unknown as { __fynnDb: Database.Database }
 
@@ -17,21 +18,76 @@ function createDb(): Database.Database {
     db.exec(schema)
   }
 
-  // Seed agents if not exists
-  const agentCount = db.prepare('SELECT COUNT(*) as count FROM agents').get() as { count: number }
-  if (agentCount.count === 0) {
-    const insert = db.prepare('INSERT INTO agents (id, name, role, description, avatar_url, color) VALUES (?, ?, ?, ?, ?, ?)')
-    insert.run('luna', 'Luna', 'Design Agent', 'Creates stunning custom designs and artwork for products', '/agents/luna.svg', '#9e4aff')
-    insert.run('marcus', 'Marcus', 'Listing Agent', 'Optimizes and manages Etsy listings for maximum visibility', '/agents/marcus.svg', '#4a9eff')
-    insert.run('aria', 'Aria', 'Fulfillment Agent', 'Processes orders and manages dropshipping fulfillment', '/agents/aria.svg', '#4aff9e')
-    insert.run('rex', 'Rex', 'Support Agent', 'Handles customer messages, reviews, and support tickets', '/agents/rex.svg', '#ff9e4a')
-    insert.run('nova', 'Nova', 'Analytics Agent', 'Tracks sales trends and generates performance reports', '/agents/nova.svg', '#ff4a9e')
+  // Seed default shop if shops table is empty
+  const shopCount = db.prepare('SELECT COUNT(*) as count FROM shops').get() as { count: number }
+  if (shopCount.count === 0) {
+    seedShopInternal(db, 'default', 'My Shop')
   }
 
   return db
 }
 
+function seedShopInternal(database: Database.Database, shopId: string, shopName: string) {
+  const slug = shopName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+
+  database.prepare(
+    `INSERT OR IGNORE INTO shops (id, name, slug) VALUES (?, ?, ?)`
+  ).run(shopId, shopName, slug)
+
+  const insertAgent = database.prepare(
+    `INSERT OR IGNORE INTO agents (id, shop_id, name, role, description, avatar_url, color, template_type, is_custom, is_manager)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  )
+
+  for (const [key, tmpl] of Object.entries(DEFAULT_AGENT_TEMPLATES)) {
+    insertAgent.run(
+      tmpl.id,
+      shopId,
+      tmpl.name,
+      tmpl.role,
+      tmpl.description,
+      `/agents/${key}.svg`,
+      tmpl.color,
+      tmpl.templateType,
+      0,
+      tmpl.isManager ? 1 : 0
+    )
+  }
+}
+
 export const db = globalForDb.__fynnDb || (globalForDb.__fynnDb = createDb())
+
+export function seedShop(shopId: string, shopName: string, slug?: string, description?: string) {
+  const finalSlug = slug || shopName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+  if (description) {
+    db.prepare(
+      `INSERT OR IGNORE INTO shops (id, name, slug, description) VALUES (?, ?, ?, ?)`
+    ).run(shopId, shopName, finalSlug, description)
+  } else {
+    db.prepare(
+      `INSERT OR IGNORE INTO shops (id, name, slug) VALUES (?, ?, ?)`
+    ).run(shopId, shopName, finalSlug)
+  }
+  // Seed default agents for the shop
+  const insertAgent = db.prepare(
+    `INSERT OR IGNORE INTO agents (id, shop_id, name, role, description, avatar_url, color, template_type, is_custom, is_manager)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  )
+  for (const [key, tmpl] of Object.entries(DEFAULT_AGENT_TEMPLATES)) {
+    insertAgent.run(
+      `${shopId}-${tmpl.id}`,
+      shopId,
+      tmpl.name,
+      tmpl.role,
+      tmpl.description,
+      `/agents/${key}.svg`,
+      tmpl.color,
+      tmpl.templateType,
+      0,
+      tmpl.isManager ? 1 : 0
+    )
+  }
+}
 
 export function all<T = Record<string, unknown>>(sql: string, ...params: unknown[]): T[] {
   return db.prepare(sql).all(...params) as T[]

@@ -12,6 +12,9 @@ export interface AgentData {
   status: string
   current_task_id: string | null
   tasks_completed: number
+  template_type: string
+  is_manager: number
+  is_custom: number
   currentTask: {
     id: string
     title: string
@@ -27,13 +30,13 @@ export interface AgentData {
   }[]
 }
 
-export function useAgents() {
+export function useAgents(shopId: string) {
   const [agents, setAgents] = useState<AgentData[]>([])
   const [loading, setLoading] = useState(true)
 
   const fetchAgents = useCallback(async () => {
     try {
-      const res = await fetch('/api/agents')
+      const res = await fetch(`/api/shops/${shopId}/agents`)
       if (res.ok) {
         const data = await res.json()
         setAgents(data)
@@ -43,7 +46,7 @@ export function useAgents() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [shopId])
 
   useEffect(() => {
     fetchAgents()

@@ -1,5 +1,5 @@
 import { BaseAgent } from './base-agent'
-import type { Task, SimulationStep, TaskType } from './types'
+import type { AgentConfig, Task, SimulationStep, TaskType } from './types'
 
 const CUSTOMER_TOPICS = [
   'sizing question', 'shipping timeframe', 'custom design request', 'return policy',
@@ -8,8 +8,8 @@ const CUSTOMER_TOPICS = [
 ]
 
 export class RexAgent extends BaseAgent {
-  constructor() {
-    super('rex', 'Rex')
+  constructor(config: AgentConfig) {
+    super(config)
   }
 
   getSystemPrompt(): string {

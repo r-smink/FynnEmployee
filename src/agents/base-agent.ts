@@ -2,17 +2,25 @@ import { v4 as uuid } from 'uuid'
 import { run, get } from '@/lib/db'
 import { emitAgentEvent } from '@/lib/events'
 import { isAiEnabled, aiChat } from '@/lib/ai'
-import type { AgentId, AgentStatus, Task, SimulationStep, TaskType } from './types'
+import type { AgentConfig, AgentStatus, Task, SimulationStep, TaskType } from './types'
 
 export abstract class BaseAgent {
-  id: AgentId
+  id: string
+  shopId: string
   name: string
+  templateType: string
+  customPrompt: string | undefined
+  color: string | undefined
   status: AgentStatus = 'idle'
   currentTask: Task | null = null
 
-  constructor(id: AgentId, name: string) {
-    this.id = id
-    this.name = name
+  constructor(config: AgentConfig) {
+    this.id = config.id
+    this.shopId = config.shopId
+    this.name = config.name
+    this.templateType = config.templateType
+    this.customPrompt = config.customPrompt
+    this.color = config.color
   }
 
   abstract generateTask(): { type: TaskType; title: string; description: string }
@@ -20,10 +28,15 @@ export abstract class BaseAgent {
   abstract getSystemPrompt(): string
   abstract getTaskPrompt(task: Task): string
 
+  getEffectiveSystemPrompt(): string {
+    return this.customPrompt || this.getSystemPrompt()
+  }
+
   setStatus(status: AgentStatus) {
     this.status = status
-    run('UPDATE agents SET status = ?, updated_at = datetime(\'now\') WHERE id = ?', status, this.id)
+    run('UPDATE agents SET status = ?, updated_at = datetime(\'now\') WHERE id = ? AND shop_id = ?', status, this.id, this.shopId)
     emitAgentEvent({
+      shopId: this.shopId,
       agentId: this.id,
       type: 'status_change',
       data: { status },
@@ -33,10 +46,11 @@ export abstract class BaseAgent {
 
   log(message: string, type: 'info' | 'success' | 'warning' | 'error' | 'thinking' = 'info', taskId?: string) {
     run(
-      'INSERT INTO activity_log (agent_id, task_id, message, type) VALUES (?, ?, ?, ?)',
-      this.id, taskId || null, message, type
+      'INSERT INTO activity_log (shop_id, agent_id, task_id, message, type) VALUES (?, ?, ?, ?, ?)',
+      this.shopId, this.id, taskId || null, message, type
     )
     emitAgentEvent({
+      shopId: this.shopId,
       agentId: this.id,
       type: 'activity',
       data: { message, activityType: type, taskId },
@@ -47,6 +61,7 @@ export abstract class BaseAgent {
   protected updateProgress(taskId: string, progress: number, message: string) {
     run('UPDATE tasks SET progress = ? WHERE id = ?', progress, taskId)
     emitAgentEvent({
+      shopId: this.shopId,
       agentId: this.id,
       type: 'task_progress',
       data: { taskId, progress, message },
@@ -59,9 +74,10 @@ export abstract class BaseAgent {
     this.setStatus('working')
 
     run('UPDATE tasks SET status = \'in_progress\', started_at = datetime(\'now\') WHERE id = ?', task.id)
-    run('UPDATE agents SET current_task_id = ? WHERE id = ?', task.id, this.id)
+    run('UPDATE agents SET current_task_id = ? WHERE id = ? AND shop_id = ?', task.id, this.id, this.shopId)
 
     emitAgentEvent({
+      shopId: this.shopId,
       agentId: this.id,
       type: 'task_started',
       data: { taskId: task.id, title: task.title, type: task.type },
@@ -81,12 +97,13 @@ export abstract class BaseAgent {
         task.id
       )
       run(
-        'UPDATE agents SET tasks_completed = tasks_completed + 1, current_task_id = NULL, updated_at = datetime(\'now\') WHERE id = ?',
-        this.id
+        'UPDATE agents SET tasks_completed = tasks_completed + 1, current_task_id = NULL, updated_at = datetime(\'now\') WHERE id = ? AND shop_id = ?',
+        this.id, this.shopId
       )
 
       this.log(`Completed: ${task.title}`, 'success', task.id)
       emitAgentEvent({
+        shopId: this.shopId,
         agentId: this.id,
         type: 'task_completed',
         data: { taskId: task.id, title: task.title, type: task.type },
@@ -94,9 +111,10 @@ export abstract class BaseAgent {
       })
     } catch (err) {
       run('UPDATE tasks SET status = \'failed\' WHERE id = ?', task.id)
-      run('UPDATE agents SET current_task_id = NULL WHERE id = ?', this.id)
+      run('UPDATE agents SET current_task_id = NULL WHERE id = ? AND shop_id = ?', this.id, this.shopId)
       this.log(`Failed: ${task.title} - ${err}`, 'error', task.id)
       emitAgentEvent({
+        shopId: this.shopId,
         agentId: this.id,
         type: 'task_failed',
         data: { taskId: task.id, error: String(err) },
@@ -116,7 +134,7 @@ export abstract class BaseAgent {
     this.log('Consulting AI for best approach...', 'thinking', task.id)
     this.updateProgress(task.id, 30, 'Consulting AI...')
 
-    const result = await aiChat(this.getSystemPrompt(), this.getTaskPrompt(task))
+    const result = await aiChat(this.getEffectiveSystemPrompt(), this.getTaskPrompt(task))
 
     if (result) {
       this.updateProgress(task.id, 60, 'Processing AI response...')
@@ -151,8 +169,8 @@ export abstract class BaseAgent {
     const { type, title, description } = this.generateTask()
     const id = uuid()
     run(
-      'INSERT INTO tasks (id, agent_id, type, title, description, status) VALUES (?, ?, ?, ?, ?, \'queued\')',
-      id, this.id, type, title, description
+      'INSERT INTO tasks (id, shop_id, agent_id, type, title, description, status) VALUES (?, ?, ?, ?, ?, ?, \'queued\')',
+      id, this.shopId, this.id, type, title, description
     )
     return get<Task>('SELECT * FROM tasks WHERE id = ?', id)!
   }

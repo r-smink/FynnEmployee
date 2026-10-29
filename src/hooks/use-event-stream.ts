@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 export interface StreamEvent {
   agentId: string
@@ -18,7 +18,7 @@ export interface ActivityItem {
   taskId?: string
 }
 
-export function useEventStream() {
+export function useEventStream(shopId: string) {
   const [connected, setConnected] = useState(false)
   const [activities, setActivities] = useState<ActivityItem[]>([])
   const [agentUpdates, setAgentUpdates] = useState<Map<string, StreamEvent>>(new Map())
@@ -26,7 +26,7 @@ export function useEventStream() {
   const activityIdRef = useRef(0)
 
   useEffect(() => {
-    const es = new EventSource('/api/stream')
+    const es = new EventSource(`/api/shops/${shopId}/stream`)
     eventSourceRef.current = es
 
     es.onopen = () => setConnected(true)
@@ -76,7 +76,7 @@ export function useEventStream() {
       es.close()
       eventSourceRef.current = null
     }
-  }, [])
+  }, [shopId])
 
   return { connected, activities, agentUpdates }
 }

@@ -2,7 +2,7 @@ import { BaseAgent } from './base-agent'
 import { aiChat } from '@/lib/ai'
 import { run } from '@/lib/db'
 import { isEtsyConnected } from '@/integrations/etsy/client'
-import type { Task, SimulationStep, TaskType } from './types'
+import type { AgentConfig, Task, SimulationStep, TaskType } from './types'
 import { v4 as uuid } from 'uuid'
 
 const LISTING_ACTIONS = [
@@ -12,8 +12,8 @@ const LISTING_ACTIONS = [
 ]
 
 export class MarcusAgent extends BaseAgent {
-  constructor() {
-    super('marcus', 'Marcus')
+  constructor(config: AgentConfig) {
+    super(config)
   }
 
   getSystemPrompt(): string {
@@ -47,7 +47,7 @@ Keep responses under 250 words. Focus on search visibility and conversion.`
     this.log('Generating listing content with AI...', 'thinking', task.id)
     this.updateProgress(task.id, 30, 'Consulting AI...')
 
-    const result = await aiChat(this.getSystemPrompt(), this.getTaskPrompt(task))
+    const result = await aiChat(this.getEffectiveSystemPrompt(), this.getTaskPrompt(task))
 
     if (!result) {
       this.log('AI unavailable, running simulation...', 'warning', task.id)
@@ -73,8 +73,8 @@ Keep responses under 250 words. Focus on search visibility and conversion.`
           const productId = uuid()
           const tags = Array.isArray(listingData.tags) ? JSON.stringify(listingData.tags) : '[]'
           run(
-            `INSERT INTO products (id, title, description, tags, price, status, created_by) VALUES (?, ?, ?, ?, ?, 'listed', 'marcus')`,
-            productId, listingData.title || task.title, listingData.description || '', tags, listingData.price || 29.99
+            `INSERT INTO products (id, shop_id, title, description, tags, price, status, created_by) VALUES (?, ?, ?, ?, ?, ?, 'listed', 'marcus')`,
+            productId, this.shopId, listingData.title || task.title, listingData.description || '', tags, listingData.price || 29.99
           )
           this.log(`Product saved to catalog`, 'success', task.id)
         }

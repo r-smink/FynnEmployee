@@ -1,5 +1,5 @@
 import { BaseAgent } from './base-agent'
-import type { Task, SimulationStep, TaskType } from './types'
+import type { AgentConfig, Task, SimulationStep, TaskType } from './types'
 
 const DESIGN_THEMES = [
   'Tropical Sunset', 'Mountain Adventure', 'Ocean Waves', 'Floral Botanicals',
@@ -12,8 +12,8 @@ const DESIGN_THEMES = [
 const PRODUCT_TYPES = ['T-Shirt', 'Tote Bag', 'Mug', 'Phone Case', 'Poster', 'Sticker Set', 'Pillow Cover', 'Hoodie']
 
 export class LunaAgent extends BaseAgent {
-  constructor() {
-    super('luna', 'Luna')
+  constructor(config: AgentConfig) {
+    super(config)
   }
 
   getSystemPrompt(): string {

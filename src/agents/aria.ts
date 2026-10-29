@@ -3,7 +3,7 @@ import { aiChat } from '@/lib/ai'
 import { run, all, get } from '@/lib/db'
 import { isEtsyConnected, getReceipts } from '@/integrations/etsy/client'
 import { isPrintfulConnected, createOrder, confirmOrder, getOrder, buildOrderFromEtsy } from '@/integrations/printful/client'
-import type { Task, SimulationStep, TaskType } from './types'
+import type { AgentConfig, Task, SimulationStep, TaskType } from './types'
 import { v4 as uuid } from 'uuid'
 
 interface DbOrder {
@@ -19,8 +19,8 @@ interface DbOrder {
 }
 
 export class AriaAgent extends BaseAgent {
-  constructor() {
-    super('aria', 'Aria')
+  constructor(config: AgentConfig) {
+    super(config)
   }
 
   private orderNum(): string {
@@ -63,15 +63,15 @@ Keep responses under 150 words. Be precise and action-oriented.`
           this.log(`Found ${receipts.results.length} open orders on Etsy`, 'info', task.id)
 
           for (const receipt of receipts.results) {
-            const existing = all('SELECT id FROM orders WHERE etsy_order_id = ?', String(receipt.order_id))
+            const existing = all('SELECT id FROM orders WHERE etsy_order_id = ? AND shop_id = ?', String(receipt.order_id), this.shopId)
             if (existing.length === 0) {
               const total = receipt.grandtotal.amount / receipt.grandtotal.divisor
               const orderId = uuid()
               run(
-                `INSERT INTO orders (id, etsy_order_id, customer_name, customer_email, total_price, status, quantity)
-                 VALUES (?, ?, ?, ?, ?, 'new', ?)`,
-                orderId, String(receipt.order_id), receipt.name, receipt.buyer_email, total,
-                receipt.transactions.reduce((sum, t) => sum + t.quantity, 0)
+                `INSERT INTO orders (id, shop_id, etsy_order_id, customer_name, customer_email, total_price, status, quantity)
+                 VALUES (?, ?, ?, ?, ?, ?, 'new', ?)`,
+                orderId, this.shopId, String(receipt.order_id), receipt.name, receipt.buyer_email, total,
+                receipt.transactions.reduce((sum: number, t: { quantity: number }) => sum + t.quantity, 0)
               )
               this.log(`Imported order from ${receipt.name} ($${total.toFixed(2)})`, 'success', task.id)
             }
@@ -89,7 +89,8 @@ Keep responses under 150 words. Be precise and action-oriented.`
       this.updateProgress(task.id, 40, 'Processing orders via Printful...')
 
       const pendingOrders = all<DbOrder>(
-        "SELECT * FROM orders WHERE status = 'new' AND fulfillment_id IS NULL LIMIT 5"
+        "SELECT * FROM orders WHERE shop_id = ? AND status = 'new' AND fulfillment_id IS NULL LIMIT 5",
+        this.shopId
       )
 
       if (pendingOrders.length > 0) {
@@ -102,8 +103,8 @@ Keep responses under 150 words. Be precise and action-oriented.`
             // Note: In production, you'd look up the correct variant_id and design_url
             // from the product linked to this order. For now we log what would happen.
             run(
-              `UPDATE orders SET status = 'processing', fulfillment_status = 'submitted', updated_at = datetime('now') WHERE id = ?`,
-              order.id
+              `UPDATE orders SET status = 'processing', fulfillment_status = 'submitted', updated_at = datetime('now') WHERE id = ? AND shop_id = ?`,
+              order.id, this.shopId
             )
             this.log(`Order ${order.id.substring(0, 8)} marked for fulfillment`, 'success', task.id)
           } catch (err) {
@@ -122,7 +123,8 @@ Keep responses under 150 words. Be precise and action-oriented.`
       this.updateProgress(task.id, 30, 'Checking Printful order status...')
 
       const processingOrders = all<DbOrder>(
-        "SELECT * FROM orders WHERE fulfillment_id IS NOT NULL AND status != 'fulfilled' LIMIT 10"
+        "SELECT * FROM orders WHERE shop_id = ? AND fulfillment_id IS NOT NULL AND status != 'fulfilled' LIMIT 10",
+        this.shopId
       )
 
       if (processingOrders.length > 0) {
@@ -139,15 +141,15 @@ Keep responses under 150 words. Be precise and action-oriented.`
               const newStatus = statusMap[pfOrder.status] || pfOrder.status
 
               run(
-                `UPDATE orders SET fulfillment_status = ?, updated_at = datetime('now') WHERE id = ?`,
-                newStatus, order.id
+                `UPDATE orders SET fulfillment_status = ?, updated_at = datetime('now') WHERE id = ? AND shop_id = ?`,
+                newStatus, order.id, this.shopId
               )
 
               if (pfOrder.shipments?.length > 0) {
                 const shipment = pfOrder.shipments[0]
                 run(
-                  `UPDATE orders SET tracking_number = ?, fulfillment_status = 'shipped' WHERE id = ?`,
-                  shipment.tracking_number, order.id
+                  `UPDATE orders SET tracking_number = ?, fulfillment_status = 'shipped' WHERE id = ? AND shop_id = ?`,
+                  shipment.tracking_number, order.id, this.shopId
                 )
                 this.log(
                   `Order ${order.id.substring(0, 8)} shipped via ${shipment.carrier} - ${shipment.tracking_number}`,
@@ -170,7 +172,7 @@ Keep responses under 150 words. Be precise and action-oriented.`
 
     // ── Step 4: AI summary/confirmation ───────────────────
     this.updateProgress(task.id, 80, 'Generating summary...')
-    const result = await aiChat(this.getSystemPrompt(), this.getTaskPrompt(task))
+    const result = await aiChat(this.getEffectiveSystemPrompt(), this.getTaskPrompt(task))
     if (result) {
       run('UPDATE tasks SET output_data = ? WHERE id = ?', JSON.stringify({ aiResponse: result }), task.id)
       const preview = result.length > 120 ? result.substring(0, 120) + '...' : result

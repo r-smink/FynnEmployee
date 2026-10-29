@@ -21,7 +21,121 @@
     "afterFiles": [],
     "fallback": []
   },
-  "dynamicRoutes": [],
+  "dynamicRoutes": [
+    {
+      "page": "/api/shops/[shopId]",
+      "regex": "^/api/shops/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPshopId": "nxtPshopId"
+      },
+      "namedRegex": "^/api/shops/(?<nxtPshopId>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/api/shops/[shopId]/agents",
+      "regex": "^/api/shops/([^/]+?)/agents(?:/)?$",
+      "routeKeys": {
+        "nxtPshopId": "nxtPshopId"
+      },
+      "namedRegex": "^/api/shops/(?<nxtPshopId>[^/]+?)/agents(?:/)?$"
+    },
+    {
+      "page": "/api/shops/[shopId]/agents/[agentId]",
+      "regex": "^/api/shops/([^/]+?)/agents/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPshopId": "nxtPshopId",
+        "nxtPagentId": "nxtPagentId"
+      },
+      "namedRegex": "^/api/shops/(?<nxtPshopId>[^/]+?)/agents/(?<nxtPagentId>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/api/shops/[shopId]/orders",
+      "regex": "^/api/shops/([^/]+?)/orders(?:/)?$",
+      "routeKeys": {
+        "nxtPshopId": "nxtPshopId"
+      },
+      "namedRegex": "^/api/shops/(?<nxtPshopId>[^/]+?)/orders(?:/)?$"
+    },
+    {
+      "page": "/api/shops/[shopId]/products",
+      "regex": "^/api/shops/([^/]+?)/products(?:/)?$",
+      "routeKeys": {
+        "nxtPshopId": "nxtPshopId"
+      },
+      "namedRegex": "^/api/shops/(?<nxtPshopId>[^/]+?)/products(?:/)?$"
+    },
+    {
+      "page": "/api/shops/[shopId]/settings",
+      "regex": "^/api/shops/([^/]+?)/settings(?:/)?$",
+      "routeKeys": {
+        "nxtPshopId": "nxtPshopId"
+      },
+      "namedRegex": "^/api/shops/(?<nxtPshopId>[^/]+?)/settings(?:/)?$"
+    },
+    {
+      "page": "/api/shops/[shopId]/stream",
+      "regex": "^/api/shops/([^/]+?)/stream(?:/)?$",
+      "routeKeys": {
+        "nxtPshopId": "nxtPshopId"
+      },
+      "namedRegex": "^/api/shops/(?<nxtPshopId>[^/]+?)/stream(?:/)?$"
+    },
+    {
+      "page": "/api/shops/[shopId]/tasks",
+      "regex": "^/api/shops/([^/]+?)/tasks(?:/)?$",
+      "routeKeys": {
+        "nxtPshopId": "nxtPshopId"
+      },
+      "namedRegex": "^/api/shops/(?<nxtPshopId>[^/]+?)/tasks(?:/)?$"
+    },
+    {
+      "page": "/shops/[shopId]/agents",
+      "regex": "^/shops/([^/]+?)/agents(?:/)?$",
+      "routeKeys": {
+        "nxtPshopId": "nxtPshopId"
+      },
+      "namedRegex": "^/shops/(?<nxtPshopId>[^/]+?)/agents(?:/)?$"
+    },
+    {
+      "page": "/shops/[shopId]/analytics",
+      "regex": "^/shops/([^/]+?)/analytics(?:/)?$",
+      "routeKeys": {
+        "nxtPshopId": "nxtPshopId"
+      },
+      "namedRegex": "^/shops/(?<nxtPshopId>[^/]+?)/analytics(?:/)?$"
+    },
+    {
+      "page": "/shops/[shopId]/dashboard",
+      "regex": "^/shops/([^/]+?)/dashboard(?:/)?$",
+      "routeKeys": {
+        "nxtPshopId": "nxtPshopId"
+      },
+      "namedRegex": "^/shops/(?<nxtPshopId>[^/]+?)/dashboard(?:/)?$"
+    },
+    {
+      "page": "/shops/[shopId]/orders",
+      "regex": "^/shops/([^/]+?)/orders(?:/)?$",
+      "routeKeys": {
+        "nxtPshopId": "nxtPshopId"
+      },
+      "namedRegex": "^/shops/(?<nxtPshopId>[^/]+?)/orders(?:/)?$"
+    },
+    {
+      "page": "/shops/[shopId]/products",
+      "regex": "^/shops/([^/]+?)/products(?:/)?$",
+      "routeKeys": {
+        "nxtPshopId": "nxtPshopId"
+      },
+      "namedRegex": "^/shops/(?<nxtPshopId>[^/]+?)/products(?:/)?$"
+    },
+    {
+      "page": "/shops/[shopId]/settings",
+      "regex": "^/shops/([^/]+?)/settings(?:/)?$",
+      "routeKeys": {
+        "nxtPshopId": "nxtPshopId"
+      },
+      "namedRegex": "^/shops/(?<nxtPshopId>[^/]+?)/settings(?:/)?$"
+    }
+  ],
   "staticRoutes": [
     {
       "page": "/",
@@ -126,6 +240,12 @@
       "namedRegex": "^/api/settings(?:/)?$"
     },
     {
+      "page": "/api/shops",
+      "regex": "^/api/shops(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/shops(?:/)?$"
+    },
+    {
       "page": "/api/stream",
       "regex": "^/api/stream(?:/)?$",
       "routeKeys": {},
@@ -160,6 +280,12 @@
       "regex": "^/settings(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/settings(?:/)?$"
+    },
+    {
+      "page": "/shops",
+      "regex": "^/shops(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/shops(?:/)?$"
     }
   ],
   "dataRoutes": [],

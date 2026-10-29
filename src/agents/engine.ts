@@ -1,72 +1,103 @@
-import { LunaAgent } from './luna'
-import { MarcusAgent } from './marcus'
-import { AriaAgent } from './aria'
-import { RexAgent } from './rex'
-import { NovaAgent } from './nova'
+import { all } from '@/lib/db'
+import { createAgentFromRecord } from './agent-factory'
 import { BaseAgent } from './base-agent'
-import type { AgentId } from './types'
+import type { Agent } from './types'
 
 class AgentEngine {
-  agents: Map<AgentId, BaseAgent> = new Map()
-  private running = false
+  shops: Map<string, Map<string, BaseAgent>> = new Map()
+  private running: Map<string, boolean> = new Map()
   private timers: NodeJS.Timeout[] = []
 
-  constructor() {
-    this.agents.set('luna', new LunaAgent())
-    this.agents.set('marcus', new MarcusAgent())
-    this.agents.set('aria', new AriaAgent())
-    this.agents.set('rex', new RexAgent())
-    this.agents.set('nova', new NovaAgent())
+  loadShop(shopId: string): Map<string, BaseAgent> {
+    if (this.shops.has(shopId)) return this.shops.get(shopId)!
+
+    const records = all<Agent>('SELECT * FROM agents WHERE shop_id = ?', shopId)
+    const agentMap = new Map<string, BaseAgent>()
+
+    for (const record of records) {
+      const agent = createAgentFromRecord(record)
+      agentMap.set(record.id, agent)
+    }
+
+    this.shops.set(shopId, agentMap)
+    return agentMap
   }
 
-  start() {
-    if (this.running) return
-    this.running = true
+  startShop(shopId: string) {
+    if (this.running.get(shopId)) return
 
-    // Start simulation loop - each agent gets its own cycle
-    for (const [id, agent] of this.agents) {
-      this.scheduleAgent(id, agent)
+    const agents = this.loadShop(shopId)
+    this.running.set(shopId, true)
+
+    for (const [id, agent] of agents) {
+      this.scheduleAgent(shopId, id, agent)
     }
   }
 
-  private scheduleAgent(id: AgentId, agent: BaseAgent) {
-    const minDelay = 8000  // 8 sec
-    const maxDelay = 25000 // 25 sec
+  private scheduleAgent(shopId: string, id: string, agent: BaseAgent) {
+    // Manager agent (Fynn) runs less frequently
+    const isManager = agent.constructor.name === 'FynnAgent'
+    const minDelay = isManager ? 15000 : 8000
+    const maxDelay = isManager ? 40000 : 25000
     const delay = minDelay + Math.random() * (maxDelay - minDelay)
 
     const timer = setTimeout(async () => {
-      if (!this.running) return
+      if (!this.running.get(shopId)) return
 
       if (agent.status === 'idle') {
         try {
           const task = agent.createTask()
           await agent.processTask(task)
         } catch (e) {
-          console.error(`Agent ${id} error:`, e)
+          console.error(`Agent ${id} (shop ${shopId}) error:`, e)
         }
       }
 
-      // Schedule next task
-      if (this.running) {
-        this.scheduleAgent(id, agent)
+      if (this.running.get(shopId)) {
+        this.scheduleAgent(shopId, id, agent)
       }
     }, delay)
 
     this.timers.push(timer)
   }
 
-  stop() {
-    this.running = false
+  stopShop(shopId: string) {
+    this.running.set(shopId, false)
+    // Note: timers are shared pool, individual shop stop just prevents re-scheduling
+  }
+
+  stopAll() {
+    for (const shopId of this.running.keys()) {
+      this.running.set(shopId, false)
+    }
     this.timers.forEach(t => clearTimeout(t))
     this.timers = []
   }
 
-  getAgent(id: AgentId): BaseAgent | undefined {
-    return this.agents.get(id)
+  getAgent(shopId: string, agentId: string): BaseAgent | undefined {
+    return this.shops.get(shopId)?.get(agentId)
   }
 
-  ensureStarted() {
-    this.start()
+  getShopAgents(shopId: string): Map<string, BaseAgent> {
+    return this.loadShop(shopId)
+  }
+
+  ensureShopStarted(shopId: string) {
+    this.startShop(shopId)
+  }
+
+  addAgent(shopId: string, record: Agent): BaseAgent {
+    const agents = this.loadShop(shopId)
+    const agent = createAgentFromRecord(record)
+    agents.set(record.id, agent)
+    if (this.running.get(shopId)) {
+      this.scheduleAgent(shopId, record.id, agent)
+    }
+    return agent
+  }
+
+  removeAgent(shopId: string, agentId: string) {
+    this.shops.get(shopId)?.delete(agentId)
   }
 }
 

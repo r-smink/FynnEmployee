@@ -4,7 +4,7 @@ import { engine } from '@/agents/engine'
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
-  engine.ensureStarted()
+  engine.ensureShopStarted('default')
 
   const encoder = new TextEncoder()
   let listenerCleanup: (() => void) | null = null

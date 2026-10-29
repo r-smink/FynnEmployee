@@ -8,8 +8,8 @@ import { useAgents } from '@/hooks/use-agents'
 import { useEventStream } from '@/hooks/use-event-stream'
 
 export default function DashboardPage() {
-  const { agents, loading } = useAgents()
-  const { connected, activities } = useEventStream()
+  const { agents, loading } = useAgents('default')
+  const { connected, activities } = useEventStream('default')
 
   return (
     <>
