@@ -91,6 +91,7 @@ function SettingsContent({ shopId }: { shopId: string }) {
   const [printfulConnected, setPrintfulConnected] = useState(false)
   const [printfulStore, setPrintfulStore] = useState<{ id: number; name: string; type: string; currency: string } | null>(null)
   const [printfulChecking, setPrintfulChecking] = useState(false)
+  const [printfulError, setPrintfulError] = useState<string | null>(null)
 
   useEffect(() => {
     const connected = searchParams.get('etsy_connected')
@@ -123,18 +124,31 @@ function SettingsContent({ shopId }: { shopId: string }) {
       if (data.connected && data.store) {
         setPrintfulConnected(true)
         setPrintfulStore(data.store)
+        setPrintfulError(null)
+      } else if (data.error) {
+        setPrintfulError(data.error)
       }
-    } catch {}
+    } catch {
+      setPrintfulError('Printful is niet bereikbaar')
+    }
   }
 
   const testPrintfulConnection = async () => {
-    if (!values.printful_api_key) return
     setPrintfulChecking(true)
-    await fetch(`/api/shops/${shopId}/settings`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ printful_api_key: values.printful_api_key }),
-    })
+    setPrintfulError(null)
+    if (values.printful_api_key) {
+      const res = await fetch(`/api/shops/${shopId}/settings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ printful_api_key: values.printful_api_key }),
+      }).catch(() => null)
+      if (!res?.ok) {
+        setPrintfulError('Opslaan mislukt, probeer het opnieuw')
+        setPrintfulChecking(false)
+        return
+      }
+      fetchSettings()
+    }
     await fetchPrintfulStore()
     setPrintfulChecking(false)
   }
@@ -158,32 +172,40 @@ function SettingsContent({ shopId }: { shopId: string }) {
       for (const [key, value] of Object.entries(values)) {
         if (value.trim()) payload[key] = value.trim()
       }
-      await fetch(`/api/shops/${shopId}/settings`, {
+      const res = await fetch(`/api/shops/${shopId}/settings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
       setSaved(true)
       // Clear typed keys so the fields show the stored (masked) value again
       setValues(v => ({ openrouter_model: v.openrouter_model }))
       await fetchSettings()
       window.dispatchEvent(new Event(SETTINGS_CHANGED_EVENT))
       setTimeout(() => setSaved(false), 3000)
-    } catch {}
+    } catch {
+      alert('Opslaan mislukt. De server reageert niet, probeer het zo opnieuw.')
+    }
     setSaving(false)
   }
 
   const connectEtsy = async () => {
+    setEtsyConnecting(true)
+    setEtsyError(null)
     if (values.etsy_api_key) {
-      await fetch(`/api/shops/${shopId}/settings`, {
+      const res = await fetch(`/api/shops/${shopId}/settings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ etsy_api_key: values.etsy_api_key }),
-      })
+      }).catch(() => null)
+      if (!res?.ok) {
+        setEtsyError('Opslaan mislukt, probeer het opnieuw')
+        setEtsyConnecting(false)
+        return
+      }
     }
 
-    setEtsyConnecting(true)
-    setEtsyError(null)
     try {
       const res = await fetch('/api/etsy/auth')
       const data = await res.json()
@@ -271,7 +293,8 @@ function SettingsContent({ shopId }: { shopId: string }) {
                   <p className="mb-3 text-[12.5px] leading-normal" style={{ color: 'var(--text-m)' }}>
                     Verbind je Etsy-verkopersaccount voor echt listingbeheer en ordersynchronisatie. Je hebt een <b>Seller App</b> nodig.
                   </p>
-                  <input type="password" className="fynn-inp mb-3" placeholder="Je Etsy-app keystring…"
+                  <input type="password" className="fynn-inp mb-3"
+                    placeholder={storedKeys.etsy_api_key ? `${storedKeys.etsy_api_key}  (opgeslagen)` : 'Je Etsy-app keystring…'}
                     value={values.etsy_api_key || ''} onChange={e => setValues(v => ({ ...v, etsy_api_key: e.target.value }))} />
                   {etsyError && (
                     <p className="text-xs px-3 py-2 rounded-lg mb-3" style={{ background: 'var(--fyn-danger-light)', color: '#b91c1c' }}>{etsyError}</p>
@@ -314,10 +337,14 @@ function SettingsContent({ shopId }: { shopId: string }) {
                   <p className="mb-3 text-[12.5px] leading-normal" style={{ color: 'var(--text-m)' }}>
                     Verbind Printful voor automatische print-on-demand fulfilment via een Private Token.
                   </p>
-                  <input type="password" className="fynn-inp mb-3" placeholder="Je Printful private token…"
+                  <input type="password" className="fynn-inp mb-3"
+                    placeholder={storedKeys.printful_api_key ? `${storedKeys.printful_api_key}  (opgeslagen)` : 'Je Printful private token…'}
                     value={values.printful_api_key || ''} onChange={e => setValues(v => ({ ...v, printful_api_key: e.target.value }))} />
+                  {printfulError && (
+                    <p className="text-xs px-3 py-2 rounded-lg mb-3 break-words" style={{ background: 'var(--fyn-danger-light)', color: '#b91c1c' }}>{printfulError}</p>
+                  )}
                   <div className="flex items-center gap-3">
-                    <button onClick={testPrintfulConnection} disabled={printfulChecking || !values.printful_api_key}
+                    <button onClick={testPrintfulConnection} disabled={printfulChecking || (!values.printful_api_key && !storedKeys.printful_api_key)}
                       className="fynn-btn" style={{ height: 40, background: '#10b981', boxShadow: 'none', fontWeight: 700, fontSize: 12.5 }}>
                       {printfulChecking ? <Loader2 className="w-[15px] h-[15px] animate-spin" /> : <Link2 className="w-[15px] h-[15px]" />}
                       {printfulChecking ? 'Controleren…' : 'Verbind Printful'}
