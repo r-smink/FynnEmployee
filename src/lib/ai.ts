@@ -54,8 +54,19 @@ export function getModel(): string {
   return getSetting('openrouter_model') || DEFAULT_MODEL
 }
 
-export function isAiEnabled(): boolean {
+export type AiMode = 'live' | 'demo'
+
+// Live is the default once an API key exists; 'demo' forces simulated work even with a key
+export function getAiMode(): AiMode {
+  return getSetting('ai_mode') === 'demo' ? 'demo' : 'live'
+}
+
+export function hasAiKey(): boolean {
   return !!getSetting('openrouter_api_key')
+}
+
+export function isAiEnabled(): boolean {
+  return hasAiKey() && getAiMode() === 'live'
 }
 
 export async function aiChat(

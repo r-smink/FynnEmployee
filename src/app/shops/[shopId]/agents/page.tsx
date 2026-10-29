@@ -5,6 +5,7 @@ import { Plus, Trash2, Pencil, X, Loader2, Users, Cpu } from 'lucide-react'
 import { Topbar } from '@/components/layout/topbar'
 import { PageBody } from '@/components/layout/app-shell'
 import { AgentAvatar, AgentStatusPill } from '@/components/dashboard/agent-card'
+import { AgentToggle } from '@/components/agents/AgentToggle'
 import { useAgents, type AgentData } from '@/hooks/use-agents'
 import { ModelPicker } from '@/components/models/ModelPicker'
 import { useModels } from '@/hooks/use-models'
@@ -170,7 +171,7 @@ export default function AgentsPage({ params }: { params: Promise<{ shopId: strin
         ) : (
           <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))' }}>
             {agents.map((agent) => (
-              <div key={agent.id} className="fynn-card p-[18px]">
+              <div key={agent.id} className="fynn-card p-[18px] transition-opacity" style={{ opacity: agent.enabled === 0 && agent.status !== 'working' ? 0.6 : 1 }}>
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3 min-w-0">
                     <AgentAvatar agent={agent} size={42} />
@@ -179,7 +180,10 @@ export default function AgentsPage({ params }: { params: Promise<{ shopId: strin
                       <p className="text-xs truncate" style={{ color: 'var(--text-m)' }}>{agentRole(agent)}</p>
                     </div>
                   </div>
-                  <AgentStatusPill agent={agent} />
+                  <div className="flex items-center gap-2 flex-none">
+                    <AgentStatusPill agent={agent} />
+                    <AgentToggle agent={agent} onChange={refresh} />
+                  </div>
                 </div>
                 <p className="text-[12.5px] mb-3.5 line-clamp-2 min-h-9" style={{ color: 'var(--text-m)' }}>{agent.description}</p>
                 <div className="flex items-center gap-1.5 mb-3.5 text-[11.5px] min-w-0" title={agent.model || `Standaard: ${defaultModel}`}>

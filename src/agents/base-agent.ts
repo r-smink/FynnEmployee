@@ -12,6 +12,7 @@ export abstract class BaseAgent {
   customPrompt: string | undefined
   model: string | undefined  // OpenRouter model id; falls back to the global setting
   color: string | undefined
+  enabled: boolean
   status: AgentStatus = 'idle'
   currentTask: Task | null = null
 
@@ -23,6 +24,8 @@ export abstract class BaseAgent {
     this.customPrompt = config.customPrompt
     this.model = config.model
     this.color = config.color
+    this.enabled = config.enabled ?? true
+    this.status = this.enabled ? 'idle' : 'paused'
   }
 
   abstract generateTask(): { type: TaskType; title: string; description: string }
@@ -44,6 +47,13 @@ export abstract class BaseAgent {
       data: { status },
       timestamp: new Date().toISOString(),
     })
+  }
+
+  // A disabled agent finishes its current task, then stays paused until re-enabled
+  setEnabled(enabled: boolean) {
+    this.enabled = enabled
+    run('UPDATE agents SET enabled = ? WHERE id = ? AND shop_id = ?', enabled ? 1 : 0, this.id, this.shopId)
+    if (!this.currentTask) this.setStatus(enabled ? 'idle' : 'paused')
   }
 
   log(message: string, type: 'info' | 'success' | 'warning' | 'error' | 'thinking' = 'info', taskId?: string) {
@@ -125,7 +135,7 @@ export abstract class BaseAgent {
     }
 
     this.currentTask = null
-    this.setStatus('idle')
+    this.setStatus(this.enabled ? 'idle' : 'paused')
   }
 
   async processWithAi(task: Task): Promise<void> {

@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
 import { Sparkles, Zap } from 'lucide-react'
 import { useTheme } from '@/hooks/use-theme'
+import { useAiMode } from '@/hooks/use-ai-mode'
 
 interface TopbarProps {
   title: string
@@ -12,14 +12,8 @@ interface TopbarProps {
 }
 
 export function Topbar({ title, subtitle, connected = true, actions }: TopbarProps) {
-  const [aiEnabled, setAiEnabled] = useState(false)
   const { theme, toggle } = useTheme()
-
-  useEffect(() => {
-    fetch('/api/settings').then(r => r.json()).then(data => {
-      setAiEnabled(data.ai_enabled === 'true')
-    }).catch(() => {})
-  }, [])
+  const { live, hasApiKey, setMode } = useAiMode()
 
   const toggleKnob = (on: boolean, activeBg: string) => ({
     background: on ? activeBg : 'transparent',
@@ -35,24 +29,26 @@ export function Topbar({ title, subtitle, connected = true, actions }: TopbarPro
       </div>
       <div className="flex-1" />
       {actions}
-      {aiEnabled ? (
-        <div className="flex items-center gap-[7px] h-8 px-[13px] rounded-full"
-          style={{ background: 'rgba(16,185,129,.14)', border: '1px solid rgba(16,185,129,.3)' }}>
-          <Sparkles className="w-3.5 h-3.5" style={{ color: 'var(--fyn-success)' }} />
-          <span className="text-xs font-bold" style={{ color: 'var(--fyn-success)' }}>AI-modus</span>
-        </div>
-      ) : (
-        <div className="flex items-center gap-[7px] h-8 px-[13px] rounded-full"
-          style={{ background: 'rgba(143,57,172,.14)', border: '1px solid rgba(143,57,172,.3)' }}>
-          <Zap className="w-3.5 h-3.5" style={{ color: 'var(--fyn-purple)' }} />
-          <span className="text-xs font-bold" style={{ color: 'var(--fyn-purple)' }}>Demo-modus</span>
-        </div>
-      )}
+      <div role="radiogroup" aria-label="AI-modus" className="flex items-center gap-[3px] h-[34px] p-[3px] rounded-full"
+        style={{ background: 'var(--well)', border: '1px solid var(--input-border)' }}>
+        <button type="button" role="radio" aria-checked={live} disabled={!hasApiKey} onClick={() => setMode('live')}
+          title={hasApiKey ? 'Agents gebruiken echte AI via OpenRouter' : 'Voeg eerst een OpenRouter-sleutel toe bij Instellingen'}
+          className="flex items-center gap-[6px] h-7 px-3 rounded-full text-xs font-bold cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+          style={toggleKnob(live, 'var(--fyn-success)')}>
+          <Sparkles className="w-3.5 h-3.5" /> AI Live
+        </button>
+        <button type="button" role="radio" aria-checked={!live} onClick={() => setMode('demo')}
+          title="Agents simuleren hun werk, zonder AI-kosten"
+          className="flex items-center gap-[6px] h-7 px-3 rounded-full text-xs font-bold cursor-pointer"
+          style={toggleKnob(!live, 'var(--fyn-purple)')}>
+          <Zap className="w-3.5 h-3.5" /> Demo
+        </button>
+      </div>
       <div className="flex items-center gap-[7px]">
         <span className={`w-2 h-2 rounded-full ${connected ? 'animate-fynn-pulse' : ''}`}
           style={{ background: connected ? '#10b981' : 'var(--text-s)', boxShadow: connected ? '0 0 8px #10b981' : 'none' }} />
         <span className="text-xs font-semibold" style={{ color: connected ? '#10b981' : 'var(--text-m)' }}>
-          {connected ? 'Live' : 'Verbinden…'}
+          {connected ? 'Verbonden' : 'Verbinden…'}
         </span>
       </div>
       <button type="button" onClick={toggle} title="Wissel thema"

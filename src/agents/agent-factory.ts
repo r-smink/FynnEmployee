@@ -26,6 +26,7 @@ export function createAgentFromRecord(record: Agent): BaseAgent {
     customPrompt: record.custom_prompt || undefined,
     model: record.model || undefined,
     color: record.color,
+    enabled: record.enabled !== 0,
   }
 
   const AgentClass = TEMPLATE_MAP[record.template_type] || CustomAgent

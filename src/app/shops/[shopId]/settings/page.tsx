@@ -5,6 +5,7 @@ import { EtsyCallbackUrl } from '@/components/etsy-callback-url'
 import { useSearchParams } from 'next/navigation'
 import { Key, Sparkles, Zap, Check, Loader2, ExternalLink, Store, Link2, ShoppingBag, Settings2, BookOpen } from 'lucide-react'
 import { Topbar } from '@/components/layout/topbar'
+import { useAiMode, SETTINGS_CHANGED_EVENT } from '@/hooks/use-ai-mode'
 import { PageBody } from '@/components/layout/app-shell'
 import { AgentAvatar } from '@/components/dashboard/agent-card'
 import { useAgents } from '@/hooks/use-agents'
@@ -76,7 +77,7 @@ function SettingsContent({ shopId }: { shopId: string }) {
   const [disabledAgents, setDisabledAgents] = useState<Record<string, boolean>>({})
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [aiEnabled, setAiEnabled] = useState(false)
+  const { live: aiEnabled, hasApiKey } = useAiMode()
 
   // Etsy state
   const [etsyConnected, setEtsyConnected] = useState(false)
@@ -103,7 +104,6 @@ function SettingsContent({ shopId }: { shopId: string }) {
 
   useEffect(() => {
     fetch(`/api/shops/${shopId}/settings`).then(r => r.json()).then(data => {
-      setAiEnabled(data.ai_enabled === 'true')
       if (data.openrouter_model) setValues(v => ({ ...v, openrouter_model: v.openrouter_model ?? data.openrouter_model }))
     }).catch(() => {})
     fetchEtsyShop()
@@ -158,7 +158,7 @@ function SettingsContent({ shopId }: { shopId: string }) {
         body: JSON.stringify(payload),
       })
       setSaved(true)
-      if (payload.openrouter_api_key) setAiEnabled(true)
+      window.dispatchEvent(new Event(SETTINGS_CHANGED_EVENT))
       setTimeout(() => setSaved(false), 3000)
     } catch {}
     setSaving(false)
@@ -212,7 +212,9 @@ function SettingsContent({ shopId }: { shopId: string }) {
                 <div className="text-[12.5px] mt-0.5" style={{ color: 'var(--text-m)' }}>
                   {aiEnabled
                     ? 'Agents gebruiken OpenRouter voor echte content'
-                    : 'Voeg een OpenRouter-sleutel toe om AI-gestuurde agents in te schakelen.'}
+                    : hasApiKey
+                      ? 'Agents simuleren hun werk. Schakel bovenin naar AI Live voor echte content.'
+                      : 'Voeg een OpenRouter-sleutel toe om AI-gestuurde agents in te schakelen.'}
                 </div>
               </div>
             </div>

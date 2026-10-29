@@ -5,6 +5,7 @@ import { nl } from 'date-fns/locale'
 import type { AgentData } from '@/hooks/use-agents'
 import { AgentAvatar, AgentStatusPill } from '@/components/dashboard/agent-card'
 import { ACTIVITY_COLORS, agentRole } from '@/lib/labels'
+import { AgentToggle } from '@/components/agents/AgentToggle'
 
 export function AgentPanel({ agent, roomName }: { agent: AgentData; roomName?: string | null }) {
   return (
@@ -22,6 +23,12 @@ export function AgentPanel({ agent, roomName }: { agent: AgentData; roomName?: s
         <div className="flex items-center justify-between">
           <span className="text-xs font-semibold" style={{ color: 'var(--text-m)' }}>Status</span>
           <AgentStatusPill agent={agent} />
+        </div>
+        <div className="flex items-center justify-between mt-3">
+          <span className="text-xs font-semibold" style={{ color: 'var(--text-m)' }}>
+            {agent.enabled === 0 ? 'Uitgeschakeld' : 'Ingeschakeld'}
+          </span>
+          <AgentToggle agent={agent} />
         </div>
         {agent.currentTask && (
           <div className="mt-3">

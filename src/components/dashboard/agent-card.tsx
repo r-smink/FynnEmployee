@@ -2,6 +2,7 @@
 
 import type { AgentData } from '@/hooks/use-agents'
 import { AGENT_STATUS, agentRole, alpha } from '@/lib/labels'
+import { AgentToggle } from '@/components/agents/AgentToggle'
 
 export function AgentAvatar({ agent, size = 46 }: { agent: Pick<AgentData, 'name' | 'color'>; size?: number }) {
   return (
@@ -31,6 +32,7 @@ export function AgentStatusPill({ agent }: { agent: Pick<AgentData, 'status' | '
 
 export function AgentCard({ agent, onClick }: { agent: AgentData; onClick?: () => void }) {
   const working = agent.status === 'working'
+  const off = agent.enabled === 0
   const lastActivity = agent.recentActivity?.[0]
 
   return (
@@ -42,6 +44,7 @@ export function AgentCard({ agent, onClick }: { agent: AgentData; onClick?: () =
         border: `1px solid ${working ? alpha(agent.color, '55') : 'var(--card-border)'}`,
         boxShadow: working ? `0 0 0 1px ${alpha(agent.color, '33')}, 0 10px 30px -10px ${alpha(agent.color, '55')}` : 'var(--chip-shadow)',
         cursor: onClick ? 'pointer' : 'default',
+        opacity: off && !working ? 0.6 : 1,
       }}
     >
       <div className="flex items-start justify-between mb-3.5">
@@ -52,7 +55,10 @@ export function AgentCard({ agent, onClick }: { agent: AgentData; onClick?: () =
             <div className="text-xs truncate" style={{ color: 'var(--text-m)' }}>{agentRole(agent)}</div>
           </div>
         </div>
-        <AgentStatusPill agent={agent} />
+        <div className="flex items-center gap-2 flex-none">
+          <AgentStatusPill agent={agent} />
+          <AgentToggle agent={agent} />
+        </div>
       </div>
 
       {working && agent.currentTask ? (
