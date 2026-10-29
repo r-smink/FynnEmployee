@@ -97,7 +97,7 @@ export default function OfficePage({ params }: { params: Promise<{ shopId: strin
         <div className="flex items-center justify-between flex-wrap gap-3 mb-3.5">
           <div className="flex items-center gap-[9px]">
             <Building2 className="w-[19px] h-[19px]" style={{ color: 'var(--fyn-purple)' }} />
-            <h3 className="m-0 text-[17px] font-bold" style={{ color: 'var(--text-h)' }}>{editMode ? 'Kantoor bewerken' : 'Live kantoor'}</h3>
+            <h3 className="m-0 text-[17px] font-semibold" style={{ color: 'var(--text-h)' }}>{editMode ? 'Kantoor bewerken' : 'Live kantoor'}</h3>
             <span className="text-[12.5px]" style={{ color: 'var(--text-m)' }}>· {grid.cols} × {grid.rows} tegels</span>
           </div>
           <div className="flex items-center gap-4 flex-wrap">

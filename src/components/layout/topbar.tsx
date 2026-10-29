@@ -30,7 +30,7 @@ export function Topbar({ title, subtitle, connected = true, actions }: TopbarPro
     <header className="sticky top-0 z-20 flex items-center gap-4 px-[26px] h-16"
       style={{ background: 'var(--topbar)', backdropFilter: 'blur(14px)', borderBottom: '1px solid var(--sb-border)' }}>
       <div className="min-w-0">
-        <h2 className="m-0 text-lg font-bold tracking-[-.015em] truncate" style={{ color: 'var(--text-h)' }}>{title}</h2>
+        <h2 className="m-0 text-lg font-semibold tracking-[-.015em] truncate" style={{ color: 'var(--text-h)' }}>{title}</h2>
         {subtitle && <p className="mt-0.5 text-xs truncate" style={{ color: 'var(--text-m)' }}>{subtitle}</p>}
       </div>
       <div className="flex-1" />

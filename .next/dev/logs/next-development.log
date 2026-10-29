@@ -1,1 +1,14 @@
-{"timestamp":"00:00:01.566","source":"Server","level":"LOG","message":""}
+{"timestamp":"00:00:11.051","source":"Server","level":"LOG","message":""}
+{"timestamp":"00:00:37.873","source":"Server","level":"LOG","message":"○ Compiling /page ..."}
+{"timestamp":"00:16:48.891","source":"Browser","level":"INFO","message":"Download the React DevTools for a better development experience: https://react.dev/link/react-devtools"}
+{"timestamp":"00:16:51.953","source":"Server","level":"LOG","message":"○ Compiling /shops/[shopId]/dashboard/page ..."}
+{"timestamp":"00:16:59.378","source":"Server","level":"ERROR","message":"⨯ SyntaxError: Unexpected end of JSON input"}
+{"timestamp":"00:16:59.405","source":"Server","level":"ERROR","message":"⨯ Error: Manifest file is empty"}
+{"timestamp":"00:17:02.163","source":"Server","level":"ERROR","message":"⨯ SyntaxError: Unexpected end of JSON input"}
+{"timestamp":"00:17:02.186","source":"Server","level":"ERROR","message":"⨯ Failed to generate static paths for /shops/[shopId]/dashboard:"}
+{"timestamp":"00:17:02.192","source":"Server","level":"ERROR","message":"SyntaxError: Unexpected end of JSON input"}
+{"timestamp":"00:17:02.193","source":"Server","level":"ERROR","message":"⨯ Failed to generate static paths for /shops/[shopId]/dashboard:"}
+{"timestamp":"00:17:02.193","source":"Server","level":"ERROR","message":"SyntaxError: Unexpected end of JSON input"}
+{"timestamp":"00:17:02.193","source":"Server","level":"ERROR","message":"⨯ Failed to generate static paths for /shops/[shopId]/dashboard:"}
+{"timestamp":"00:17:02.194","source":"Server","level":"ERROR","message":"SyntaxError: Unexpected end of JSON input"}
+{"timestamp":"00:17:04.330","source":"Browser","level":"INFO","message":"Download the React DevTools for a better development experience: https://react.dev/link/react-devtools"}

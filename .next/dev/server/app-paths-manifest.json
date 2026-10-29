@@ -1,3 +1,8 @@
 {
-  "/api/models/route": "app/api/models/route.js"
+  "/api/shops/[shopId]/agents/route": "app/api/shops/[shopId]/agents/route.js",
+  "/api/shops/[shopId]/rooms/route": "app/api/shops/[shopId]/rooms/route.js",
+  "/page": "app/page.js",
+  "/shops/[shopId]/dashboard/page": "app/shops/[shopId]/dashboard/page.js",
+  "/shops/[shopId]/agents/page": "app/shops/[shopId]/agents/page.js",
+  "/shops/[shopId]/office/page": "app/shops/[shopId]/office/page.js"
 }

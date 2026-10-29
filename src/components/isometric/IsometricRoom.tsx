@@ -33,7 +33,11 @@ export function IsometricRoom({ room, layout, selected, editMode, onClick, child
       <polygon points={g.floor} fill={c} fillOpacity={0.16 * lift} stroke={c} strokeOpacity={selected ? 1 : 0.5}
         strokeWidth={selected ? 3 : 1.5} strokeDasharray={selected && editMode ? '8 5' : undefined} />
 
-      <text x={g.label.x} y={g.label.y} textAnchor="middle" fontSize={11} fontWeight={700} fill={c} fillOpacity={0.92}>
+      {/* Doorway on the open front: agents walk in and out here */}
+      <polygon points={g.doorMat} fill={c} fillOpacity={0.35} />
+      <polyline points={g.doorFrame} fill="none" stroke={c} strokeOpacity={0.85} strokeWidth={3} strokeLinejoin="round" />
+
+      <text x={g.label.x} y={g.label.y} textAnchor="middle" fontSize={11} fontWeight={600} fill={c} fillOpacity={0.92}>
         {room.name}
       </text>
 

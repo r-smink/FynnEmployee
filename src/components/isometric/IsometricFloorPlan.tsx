@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import type { OfficeGrid, Room } from '@/lib/office'
 import type { AgentData } from '@/hooks/use-agents'
-import { diamond, isoLayout, paintOrder, roomGeometry, type Pt } from './isometric-utils'
+import { corridorFloor, corridorRoute, diamond, isoLayout, paintOrder, type Pt } from './isometric-utils'
 import { IsometricRoom } from './IsometricRoom'
 import { IsometricAgent } from './IsometricAgent'
 
@@ -18,14 +18,15 @@ interface Props {
   onEmptyTileClick?: (col: number, row: number) => void
 }
 
-// Walking figures loop between two room centers
-function Walker({ from, to, color, dur, name, onClick }: { from: Pt; to: Pt; color: string; dur: number; name?: string; onClick?: () => void }) {
-  const a = `${from.x.toFixed(0)} ${(from.y + 18).toFixed(0)}`
-  const b = `${to.x.toFixed(0)} ${(to.y + 18).toFixed(0)}`
+// Walking figures go back and forth along a corridor route (screen points)
+function Walker({ route, color, speed, name, onClick }: { route: Pt[]; color: string; speed: number; name?: string; onClick?: () => void }) {
+  const pts = [...route, ...route.slice(0, -1).reverse()].map(p => `${p.x.toFixed(0)} ${(p.y + 18).toFixed(0)}`)
+  let len = 0
+  for (let i = 1; i < route.length; i++) len += Math.hypot(route[i].x - route[i - 1].x, route[i].y - route[i - 1].y)
+  const path = `M ${pts.join(' L ')}`
   return (
     <g>
-      <animateTransform attributeName="transform" type="translate" values={`${a};${b};${a}`} dur={`${dur}s`} repeatCount="indefinite"
-        calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1" />
+      <animateMotion path={path} dur={`${Math.max(6, (2 * len) / speed).toFixed(1)}s`} repeatCount="indefinite" />
       <IsometricAgent color={color} name={name} small onClick={onClick} />
     </g>
   )
@@ -48,12 +49,13 @@ export function IsometricFloorPlan({ grid, rooms, agents, editMode, selectedRoom
   // Agents without a room walk around the office ("onderweg")
   const seated = new Set(rooms.map(r => r.agent_id).filter(Boolean))
   const wandering = agents.filter(a => !seated.has(a.id))
-  const centers = paintOrder(rooms).map(r => roomGeometry(L, r).center)
-  const route = (i: number): [Pt, Pt] => {
-    const n = centers.length
+  const ordered = paintOrder(rooms)
+  const route = (i: number): Pt[] => {
+    const n = ordered.length
     const from = (i * 2) % n
     // offset in 1..n-1 so a walker never stands still
-    return [centers[from], centers[(from + 1 + ((i + Math.floor(n / 2)) % (n - 1))) % n]]
+    const to = (from + 1 + ((i + Math.floor(n / 2)) % (n - 1))) % n
+    return corridorRoute(rooms, grid, ordered[from], ordered[to]).map(([c, r]) => L.P(c, r))
   }
 
   return (
@@ -64,6 +66,10 @@ export function IsometricFloorPlan({ grid, rooms, agents, editMode, selectedRoom
         </pattern>
       </defs>
       <rect x={0} y={0} width={L.width} height={L.height} fill="url(#fn-iso)" opacity={0.5} />
+
+      {/* Corridor floor between the rooms */}
+      <polygon points={corridorFloor(L, grid)} style={{ fill: 'var(--text-s)', stroke: 'var(--text-s)' }}
+        fillOpacity={0.07} strokeOpacity={0.3} strokeWidth={1} />
 
       {/* Office footprint */}
       <polygon points={diamond(L, 0, 0, grid.cols, grid.rows)} fill="none" style={{ stroke: 'var(--text-s)' }}
@@ -108,16 +114,14 @@ export function IsometricFloorPlan({ grid, rooms, agents, editMode, selectedRoom
         )
       })}
 
-      {centers.length >= 2 && (wandering.length > 0
-        ? wandering.map((a, i) => {
-            const [from, to] = route(i)
-            return <Walker key={a.id} from={from} to={to} color={a.color} name={a.name} dur={10 + i * 3}
+      {ordered.length >= 2 && (wandering.length > 0
+        ? wandering.map((a, i) => (
+            <Walker key={a.id} route={route(i)} color={a.color} name={a.name} speed={40 - (i % 3) * 6}
               onClick={!editMode && onAgentClick ? () => onAgentClick(a) : undefined} />
-          })
-        : [['#8F39AC', 10], ['#379FD3', 13]].map(([color, dur], i) => {
-            const [from, to] = route(i)
-            return <Walker key={i} from={from} to={to} color={color as string} dur={dur as number} />
-          }))}
+          ))
+        : (['#8F39AC', '#379FD3'] as const).map((color, i) => (
+            <Walker key={i} route={route(i)} color={color} speed={40 - i * 8} />
+          )))}
     </svg>
   )
 }
