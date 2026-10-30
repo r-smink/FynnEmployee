@@ -1,5 +1,6 @@
 import { v4 as uuid } from 'uuid'
 import { run, get } from '@/lib/db'
+import { getShopSetting, SHOP_PROMPT_KEY } from '@/lib/shop-settings'
 import { emitAgentEvent } from '@/lib/events'
 import { isAiEnabled, aiChat } from '@/lib/ai'
 import type { AgentConfig, AgentStatus, Task, SimulationStep, TaskType } from './types'
@@ -33,8 +34,17 @@ export abstract class BaseAgent {
   abstract getSystemPrompt(): string
   abstract getTaskPrompt(task: Task): string
 
+  // Agent prompt plus the shop-wide prompt from the shop settings, which applies to every agent
   getEffectiveSystemPrompt(): string {
-    return this.customPrompt || this.getSystemPrompt()
+    const base = this.customPrompt || this.getSystemPrompt()
+    const shop = get<{ name: string }>('SELECT name FROM shops WHERE id = ?', this.shopId)
+    const shopPrompt = getShopSetting(this.shopId, SHOP_PROMPT_KEY)?.trim()
+    if (!shop && !shopPrompt) return base
+    return [
+      base,
+      shop && `You work for the shop "${shop.name}".`,
+      shopPrompt && `Shop-wide instructions from the owner (apply to all of your work):\n${shopPrompt}`,
+    ].filter(Boolean).join('\n\n')
   }
 
   setStatus(status: AgentStatus) {

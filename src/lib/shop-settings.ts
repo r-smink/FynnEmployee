@@ -1,5 +1,8 @@
 import { get, run, all } from './db'
 
+// Shop-wide instructions that are added to the system prompt of every agent in the shop
+export const SHOP_PROMPT_KEY = 'shop_prompt'
+
 interface ShopSetting { shop_id: string; key: string; value: string }
 
 export function getShopSetting(shopId: string, key: string): string | null {

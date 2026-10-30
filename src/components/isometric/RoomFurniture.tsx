@@ -145,6 +145,64 @@ export function RoomFurniture({ fn, c }: { fn: RoomFunction; c: string }) {
           <Plant x={26} y={-14} />
         </g>
       )
+    case 'photo':
+      return (
+        <g>
+          {/* backdrop sweep, softbox on a stand, camera on a tripod */}
+          <polygon points="-26,-30 -2,-42 -2,-14 -26,-2" fill="#fff" fillOpacity={0.16} stroke={c} strokeOpacity={0.4} strokeWidth={0.6} />
+          <rect x={-18} y={-16} width={8} height={7} rx={1} fill={c} fillOpacity={0.45} />
+          <line x1={16} y1={-30} x2={16} y2={-2} stroke={c} strokeOpacity={0.5} strokeWidth={1} />
+          <polygon points="9,-38 23,-38 20,-28 12,-28" fill="#fff" fillOpacity={0.35} stroke={c} strokeOpacity={0.5} strokeWidth={0.6} />
+          <line x1={6} y1={2} x2={2} y2={-12} stroke={c} strokeOpacity={0.5} strokeWidth={0.8} />
+          <line x1={-2} y1={2} x2={2} y2={-12} stroke={c} strokeOpacity={0.5} strokeWidth={0.8} />
+          <rect x={-3} y={-18} width={10} height={7} rx={1.5} style={screen} stroke={c} strokeOpacity={0.6} strokeWidth={0.6} />
+          <circle cx={2} cy={-14.5} r={2} fill={c} fillOpacity={0.6} />
+        </g>
+      )
+    case 'warehouse':
+      return (
+        <g>
+          {/* shelving rack with boxes */}
+          {[-30, -18, -6].map(y => (
+            <polygon key={y} points={`-30,${y + 8} 2,${y - 8} 14,${y - 2} -18,${y + 14}`} style={desk} stroke={c} strokeOpacity={0.4} strokeWidth={0.6} />
+          ))}
+          {[[-22, -22], [-10, -28], [-20, -10], [-4, -16], [-14, 2]].map(([x, y], i) => (
+            <rect key={i} x={x} y={y} width={9} height={7} rx={0.8} fill={c} fillOpacity={0.3 + (i % 2) * 0.15} stroke={c} strokeOpacity={0.5} strokeWidth={0.5} />
+          ))}
+          <polygon points="18,-6 28,-11 34,-8 24,-3" fill={c} fillOpacity={0.25} stroke={c} strokeOpacity={0.45} strokeWidth={0.6} />
+          <rect x={21} y={-15} width={8} height={7} rx={0.8} fill={c} fillOpacity={0.4} />
+        </g>
+      )
+    case 'marketing':
+      return (
+        <g>
+          <Desk c={c} />
+          <Monitor c={c} x={-9} y={-31} w={18} h={13} />
+          <polyline points="-6,-21 -2,-25 2,-23 6,-28" fill="none" stroke={c} strokeOpacity={0.8} strokeWidth={1} />
+          {/* megaphone + post-it wall */}
+          <polygon points="18,-20 30,-27 30,-11 18,-16" fill={c} fillOpacity={0.45} stroke={c} strokeOpacity={0.6} strokeWidth={0.6} />
+          <rect x={14} y={-21} width={4} height={6} rx={1} fill={c} fillOpacity={0.6} />
+          {[['#ff4a9e', -34, -30], ['#4a9eff', -28, -33], ['#facc15', -34, -24], ['#2fb37a', -28, -27]].map(([col, x, y], i) => (
+            <rect key={i} x={x as number} y={y as number} width={5} height={5} rx={0.5} fill={col as string} fillOpacity={0.7} />
+          ))}
+        </g>
+      )
+    case 'canteen':
+      return (
+        <g>
+          {/* two small tables with stools and a coffee machine */}
+          {[[-14, -2], [14, -10]].map(([x, y], i) => (
+            <g key={i}>
+              <ellipse cx={x} cy={y} rx={10} ry={5} style={desk} stroke={c} strokeOpacity={0.4} strokeWidth={0.6} />
+              <circle cx={x - 12} cy={y + 3} r={2.4} fill={c} fillOpacity={0.4} />
+              <circle cx={x + 12} cy={y - 1} r={2.4} fill={c} fillOpacity={0.4} />
+              <rect x={x - 1.5} y={y - 5} width={3} height={3} rx={0.5} fill="#fff" fillOpacity={0.6} />
+            </g>
+          ))}
+          <rect x={-34} y={-30} width={10} height={14} rx={1.5} style={screen} stroke={c} strokeOpacity={0.55} strokeWidth={0.6} />
+          <circle cx={-29} cy={-25} r={1.6} fill={c} />
+        </g>
+      )
   }
 }
 

@@ -12,6 +12,8 @@ export interface ModelInfo {
   // USD per 1M tokens, null when unknown
   inputPrice: number | null
   outputPrice: number | null
+  // accepts images as input
+  vision: boolean
 }
 
 interface OpenRouterModel {
@@ -20,7 +22,7 @@ interface OpenRouterModel {
   created: number
   context_length: number
   pricing?: { prompt?: string; completion?: string }
-  architecture?: { output_modalities?: string[] }
+  architecture?: { input_modalities?: string[]; output_modalities?: string[] }
 }
 
 const CACHE_MS = 60 * 60 * 1000
@@ -38,11 +40,11 @@ async function loadModels(): Promise<ModelInfo[]> {
   if (!res.ok) throw new Error(`OpenRouter ${res.status}`)
   const { data } = (await res.json()) as { data: OpenRouterModel[] }
   const models = data
-    // drop batch/variant suffixes (keep free tiers), image/audio generators and moderation models
+    // drop batch/variant suffixes (keep free tiers), models that cannot answer in text and moderation models
     .filter(m => !m.id.includes(':') || m.id.endsWith(':free'))
     .filter(m => {
       const out = m.architecture?.output_modalities
-      return (!out || (out.length === 1 && out[0] === 'text')) && !/guard|moderation/i.test(m.id)
+      return (!out || out.includes('text')) && !/guard|moderation/i.test(m.id)
     })
     .map(m => ({
       id: m.id,
@@ -52,6 +54,7 @@ async function loadModels(): Promise<ModelInfo[]> {
       context: m.context_length,
       inputPrice: perMillion(m.pricing?.prompt),
       outputPrice: perMillion(m.pricing?.completion),
+      vision: !!m.architecture?.input_modalities?.includes('image'),
     }))
     .sort((a, b) => a.provider.localeCompare(b.provider) || b.created - a.created)
   cache.__fynnModels = { at: Date.now(), models }

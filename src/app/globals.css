@@ -28,6 +28,8 @@
   --overlay: rgba(20,14,30,.35);
   /* isometric furniture */
   --iso-desk: #e4e0ee; --iso-screen: #2a2340; --iso-wheel: #3b3352;
+  /* single-series chart mark (validated against both surfaces) */
+  --chart-1: #8F39AC;
 }
 
 html.dark {
@@ -42,6 +44,7 @@ html.dark {
   --chip-shadow: none;
   --overlay: rgba(0,0,0,.55);
   --iso-desk: #1c1630; --iso-screen: #12101f; --iso-wheel: #0a0812;
+  --chart-1: #b06ad0;
 }
 
 /* Legacy variable names, mapped onto the new tokens */
@@ -133,6 +136,13 @@ select.fynn-inp { cursor: pointer; }
 }
 .fynn-btn-ghost:hover { border-color: var(--fyn-purple); color: var(--text-h); }
 .fynn-btn-ghost:disabled { opacity: .5; cursor: not-allowed; }
+
+.fynn-zoom-btn {
+  width: 30px; height: 30px; border-radius: 7px; border: 0; background: transparent;
+  color: var(--text-b); cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+}
+.fynn-zoom-btn:hover { background: var(--well); color: var(--fyn-purple); }
+.fynn-zoom-btn:disabled { opacity: .35; cursor: not-allowed; background: transparent; }
 
 .fynn-label { display: block; font-size: 12px; font-weight: 700; color: var(--text-b); margin-bottom: 5px; }
 .fynn-hint { font-size: 11.5px; color: var(--text-s); margin-bottom: 8px; }

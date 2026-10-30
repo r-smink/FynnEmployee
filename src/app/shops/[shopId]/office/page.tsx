@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, use } from 'react'
-import { Building2, Pencil, Check, Plus, Minus, LayoutGrid } from 'lucide-react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { Building2, Pencil, Check, Plus, Minus, LayoutGrid, ZoomIn, ZoomOut, Store } from 'lucide-react'
 import { Topbar } from '@/components/layout/topbar'
 import { PageBody } from '@/components/layout/app-shell'
 import { IsometricFloorPlan } from '@/components/isometric/IsometricFloorPlan'
@@ -14,6 +16,8 @@ import { useEventStream } from '@/hooks/use-event-stream'
 import { useOffice } from '@/hooks/use-office'
 import { GRID_LIMITS, ROOM_FUNCTIONS, findFreeSpot, type Room } from '@/lib/office'
 import { AGENT_STATUS } from '@/lib/labels'
+
+const ZOOM_LEVELS = [0.5, 0.75, 1, 1.5, 2, 3]
 
 const LEGEND = [['Werkt', '#10b981'], ['Inactief', '#8f87a3'], ['Onderweg', '#8F39AC']]
 
@@ -42,6 +46,8 @@ export default function OfficePage({ params }: { params: Promise<{ shopId: strin
   const office = useOffice(shopId)
   const { grid, rooms } = office
 
+  const router = useRouter()
+  const [zoom, setZoom] = useState(1)
   const [editMode, setEditMode] = useState(false)
   const [toolbarError, setToolbarError] = useState<string | null>(null)
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null)
@@ -82,6 +88,11 @@ export default function OfficePage({ params }: { params: Promise<{ shopId: strin
   const resize = async (cols: number, rows: number) => {
     setToolbarError(await office.resizeGrid({ cols, rows }))
   }
+
+  const zoomIndex = ZOOM_LEVELS.indexOf(zoom)
+  // Zooming out past the smallest level leaves the building: the shopping street with all shops
+  const zoomOut = () => zoomIndex > 0 ? setZoom(ZOOM_LEVELS[zoomIndex - 1]) : router.push('/street')
+  const zoomIn = () => zoomIndex < ZOOM_LEVELS.length - 1 && setZoom(ZOOM_LEVELS[zoomIndex + 1])
 
   const toggleEdit = () => {
     closePanels()
@@ -134,6 +145,23 @@ export default function OfficePage({ params }: { params: Promise<{ shopId: strin
 
         <div className="fynn-card overflow-hidden relative"
           style={{ backgroundImage: 'radial-gradient(700px 360px at 50% 20%,rgba(143,57,172,.14),transparent 70%)' }}>
+          <div className="absolute top-3 right-3 z-10 flex items-center gap-1 p-1 rounded-[10px]"
+            style={{ background: 'var(--card)', border: '1px solid var(--card-border)', boxShadow: '0 4px 14px rgba(0,0,0,.12)' }}>
+            <button className="fynn-zoom-btn" onClick={zoomOut} title={zoomIndex > 0 ? 'Uitzoomen' : 'Uitzoomen naar de winkelstraat'} aria-label="Uitzoomen">
+              <ZoomOut className="w-4 h-4" />
+            </button>
+            <button className="text-[11.5px] font-semibold w-11 cursor-pointer" style={{ color: 'var(--text-m)' }} onClick={() => setZoom(1)} title="Passend maken">
+              {Math.round(zoom * 100)}%
+            </button>
+            <button className="fynn-zoom-btn" onClick={zoomIn} disabled={zoomIndex === ZOOM_LEVELS.length - 1} title="Inzoomen" aria-label="Inzoomen">
+              <ZoomIn className="w-4 h-4" />
+            </button>
+            <span className="w-px h-5 mx-0.5" style={{ background: 'var(--divide)' }} />
+            <Link href="/street" className="fynn-zoom-btn" title="Winkelstraat met al je winkels" aria-label="Winkelstraat">
+              <Store className="w-4 h-4" />
+            </Link>
+          </div>
+          <div className="overflow-auto" style={{ maxHeight: zoom > 1 ? '78vh' : undefined }}>
           {office.loading ? (
             <div className="py-24 text-center">
               <div className="w-8 h-8 border-2 rounded-full animate-spin mx-auto mb-3" style={{ borderColor: 'var(--fyn-purple)', borderTopColor: 'transparent' }} />
@@ -149,8 +177,10 @@ export default function OfficePage({ params }: { params: Promise<{ shopId: strin
               onRoomClick={handleRoomClick}
               onAgentClick={openAgent}
               onEmptyTileClick={startNewRoom}
+              zoom={zoom}
             />
           )}
+          </div>
         </div>
 
         <div className="grid gap-3 mt-4" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))' }}>

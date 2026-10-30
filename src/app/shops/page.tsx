@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useShops } from '@/hooks/use-shops'
-import { Store, Plus, Users, Loader2, Bot } from 'lucide-react'
+import Link from 'next/link'
+import { Store, Plus, Users, Loader2, Bot, Map as MapIcon } from 'lucide-react'
 
 export default function ShopsPage() {
   const { shops } = useShops()
@@ -26,7 +27,7 @@ export default function ShopsPage() {
   return (
     <div className="min-h-screen p-8" style={{ background: 'var(--page-glow)' }}>
       <div className="max-w-4xl mx-auto animate-fade-in">
-        <div className="flex items-center gap-3 mb-8">
+        <div className="flex items-center gap-3 mb-8 flex-wrap">
           <div className="w-[42px] h-[42px] rounded-[12px] flex items-center justify-center"
             style={{ background: 'var(--fyn-gradient)', boxShadow: '0 6px 18px rgba(143,57,172,.45)' }}>
             <Bot className="w-[22px] h-[22px] text-white" />
@@ -35,6 +36,9 @@ export default function ShopsPage() {
             <h1 className="text-2xl font-bold tracking-[-.02em]" style={{ color: 'var(--text-h)' }}>Je winkels</h1>
             <p className="text-[13px]" style={{ color: 'var(--text-m)' }}>Beheer je AI-gestuurde winkels</p>
           </div>
+          <Link href="/street" className="fynn-btn-ghost ml-auto" style={{ height: 38 }}>
+            <MapIcon className="w-4 h-4" /> Winkelstraat
+          </Link>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
