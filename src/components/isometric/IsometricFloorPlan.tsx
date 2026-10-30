@@ -12,6 +12,8 @@ interface Props {
   rooms: Room[]
   agents: AgentData[]
   editMode?: boolean
+  // 1 = fit the container width; above 1 the plan overflows and the container scrolls
+  zoom?: number
   selectedRoomId?: string | null
   onAgentClick?: (agent: AgentData) => void
   onRoomClick?: (room: Room) => void
@@ -32,7 +34,7 @@ function Walker({ route, color, speed, name, onClick }: { route: Pt[]; color: st
   )
 }
 
-export function IsometricFloorPlan({ grid, rooms, agents, editMode, selectedRoomId, onAgentClick, onRoomClick, onEmptyTileClick }: Props) {
+export function IsometricFloorPlan({ grid, rooms, agents, editMode, zoom = 1, selectedRoomId, onAgentClick, onRoomClick, onEmptyTileClick }: Props) {
   const L = isoLayout(grid)
   const [hoverTile, setHoverTile] = useState<string | null>(null)
   const agentById = new Map(agents.map(a => [a.id, a]))
@@ -59,7 +61,7 @@ export function IsometricFloorPlan({ grid, rooms, agents, editMode, selectedRoom
   }
 
   return (
-    <svg viewBox={`0 0 ${L.width} ${L.height}`} className="w-full h-auto block" role="img" aria-label="Isometrische kantoorplattegrond">
+    <svg viewBox={`0 0 ${L.width} ${L.height}`} className="h-auto block mx-auto" style={{ width: `${zoom * 100}%`, maxWidth: 'none' }} role="img" aria-label="Isometrische kantoorplattegrond">
       <defs>
         <pattern id="fn-iso" width="40" height="20" patternUnits="userSpaceOnUse">
           <path d="M0 10 L20 0 L40 10 L20 20 Z" fill="none" style={{ stroke: 'var(--divide)' }} strokeWidth={0.6} />

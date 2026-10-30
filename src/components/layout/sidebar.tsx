@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Building2, Users, Package, ShoppingCart, BarChart3, Settings, Bot, ChevronDown, Plus, Store } from 'lucide-react'
+import { LayoutDashboard, Building2, Users, Package, ShoppingCart, BarChart3, Settings, Bot, ChevronDown, Plus, Store, Map as MapIcon, TrendingUp } from 'lucide-react'
 import { useAgents } from '@/hooks/use-agents'
+import { SHOPS_CHANGED_EVENT } from '@/components/shops/ShopProfileCard'
 
 interface Shop {
   id: string
@@ -19,6 +20,7 @@ const getNavItems = (shopId: string) => [
   { href: `/shops/${shopId}/products`, label: 'Producten', icon: Package },
   { href: `/shops/${shopId}/orders`, label: 'Bestellingen', icon: ShoppingCart, badgeKey: 'orders' as const },
   { href: `/shops/${shopId}/analytics`, label: 'Analytics', icon: BarChart3 },
+  { href: `/shops/${shopId}/trends`, label: 'Markttrends', icon: TrendingUp },
   { href: `/shops/${shopId}/settings`, label: 'Instellingen', icon: Settings },
 ]
 
@@ -32,10 +34,13 @@ export function Sidebar({ shopId = 'default' }: { shopId?: string }) {
   const currentShop = shops.find(s => s.id === shopId)
 
   useEffect(() => {
-    fetch('/api/shops').then(r => r.json()).then(setShops).catch(() => {})
+    const loadShops = () => fetch('/api/shops').then(r => r.json()).then(setShops).catch(() => {})
+    loadShops()
+    window.addEventListener(SHOPS_CHANGED_EVENT, loadShops)
     fetch(`/api/shops/${shopId}/orders`).then(r => r.json()).then((orders: { status: string }[]) => {
       if (Array.isArray(orders)) setNewOrders(orders.filter(o => o.status === 'new').length)
     }).catch(() => {})
+    return () => window.removeEventListener(SHOPS_CHANGED_EVENT, loadShops)
   }, [shopId])
 
   const working = agents.filter(a => a.status === 'working').length
@@ -80,6 +85,12 @@ export function Sidebar({ shopId = 'default' }: { shopId?: string }) {
                 {shop.name}
               </Link>
             ))}
+            <Link href="/street" onClick={() => setShowSwitcher(false)}
+              className="flex items-center gap-2 px-3 py-2 text-[13px] font-semibold"
+              style={{ color: 'var(--fyn-blue)', borderTop: '1px solid var(--divide)' }}>
+              <MapIcon className="w-3.5 h-3.5" />
+              Winkelstraat
+            </Link>
             <Link href="/shops" onClick={() => setShowSwitcher(false)}
               className="flex items-center gap-2 px-3 py-2 text-[13px] font-semibold"
               style={{ color: 'var(--fyn-success)', borderTop: '1px solid var(--divide)' }}>

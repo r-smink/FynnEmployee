@@ -1,6 +1,8 @@
 'use client'
 
-import { useId } from 'react'
+import { useId, useState } from 'react'
+import { ChevronDown } from 'lucide-react'
+import { ModelBrowser } from './ModelBrowser'
 import { useModels, featuredModels, formatPrice } from '@/hooks/use-models'
 
 interface Props {
@@ -12,6 +14,7 @@ interface Props {
 
 export function ModelPicker({ value, onChange, allowDefault }: Props) {
   const listId = useId()
+  const [browsing, setBrowsing] = useState(false)
   const { models, defaultModel, live, loading } = useModels()
   const trimmed = value.trim()
   const selected = models.find(m => m.id === trimmed)
@@ -55,6 +58,20 @@ export function ModelPicker({ value, onChange, allowDefault }: Props) {
               {m.name}
             </button>
           ))}
+          {models.length > featured.length && (
+            <button type="button" onClick={() => setBrowsing(b => !b)}
+              className="px-2.5 py-1 rounded-full text-[11px] font-semibold cursor-pointer inline-flex items-center gap-1"
+              style={{ background: 'transparent', border: '1px dashed var(--well-border)', color: 'var(--fyn-blue)' }}>
+              {browsing ? 'Verberg lijst' : `Alle ${models.length} modellen`}
+              <ChevronDown className="w-3 h-3" style={{ transform: browsing ? 'rotate(180deg)' : 'none' }} />
+            </button>
+          )}
+        </div>
+      )}
+
+      {browsing && (
+        <div className="mt-3">
+          <ModelBrowser models={models} selected={trimmed} onSelect={id => { onChange(id); setBrowsing(false) }} />
         </div>
       )}
     </div>

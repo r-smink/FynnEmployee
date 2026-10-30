@@ -4,6 +4,7 @@ export type RoomFunction =
   | 'manager' | 'design' | 'listing' | 'analytics' | 'support'
   | 'rnd' | 'packaging' | 'fulfillment' | 'shipping'
   | 'meeting' | 'lounge'
+  | 'photo' | 'warehouse' | 'marketing' | 'canteen'
 
 export interface Room {
   id: string
@@ -44,12 +45,16 @@ export const ROOM_FUNCTIONS: Record<RoomFunction, RoomFunctionDef> = {
   shipping:    { label: 'Verzending',     color: '#818cf8', description: 'Pakketten op weg naar de klant', handles: 'Zendingen & tracking', agentTemplate: null },
   meeting:     { label: 'Vergaderruimte', color: '#94a3b8', description: 'Overleg en dagelijkse stand-ups', handles: 'Teamoverleg', agentTemplate: null },
   lounge:      { label: 'Lounge',         color: '#f472b6', description: 'Pauzeplek voor het team', handles: 'Ontspanning', agentTemplate: null },
+  photo:       { label: 'Fotostudio',     color: '#facc15', description: "Productfoto's en mockups voor listings", handles: "Foto's & mockups", agentTemplate: null },
+  warehouse:   { label: 'Magazijn',       color: '#b45309', description: 'Voorraad en materialen', handles: 'Voorraadbeheer', agentTemplate: null },
+  marketing:   { label: 'Marketing',      color: '#ef4444', description: 'Campagnes, social media en advertenties', handles: 'Campagnes & ads', agentTemplate: null },
+  canteen:     { label: 'Kantine',        color: '#14b8a6', description: 'Lunch en koffie voor het hele team', handles: 'Lunchpauze', agentTemplate: null },
 }
 
 export const ROOM_FUNCTION_IDS = Object.keys(ROOM_FUNCTIONS) as RoomFunction[]
 
-export const GRID_LIMITS = { min: 2, max: 8 }
-export const ROOM_SIZE_MAX = 4
+export const GRID_LIMITS = { min: 2, max: 14 }
+export const ROOM_SIZE_MAX = 6
 export const DEFAULT_GRID: OfficeGrid = { cols: 4, rows: 3 }
 
 // Default 4x3 layout from the design

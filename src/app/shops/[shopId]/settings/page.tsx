@@ -11,8 +11,10 @@ import { AgentAvatar } from '@/components/dashboard/agent-card'
 import { AgentToggle } from '@/components/agents/AgentToggle'
 import { useAgents } from '@/hooks/use-agents'
 import { ModelPicker } from '@/components/models/ModelPicker'
-import { useModels, featuredModels, formatPrice } from '@/hooks/use-models'
+import { useModels } from '@/hooks/use-models'
+import { ModelBrowser } from '@/components/models/ModelBrowser'
 import { agentRole } from '@/lib/labels'
+import { ShopProfileCard } from '@/components/shops/ShopProfileCard'
 
 interface ApiKeyField {
   label: string
@@ -223,7 +225,7 @@ function SettingsContent({ shopId }: { shopId: string }) {
 
   return (
     <>
-      <Topbar title="Instellingen" subtitle="Integraties en agent-gedrag configureren" />
+      <Topbar title="Instellingen" subtitle="Winkel, integraties en agent-gedrag configureren" />
       <PageBody>
         <div className="max-w-[860px]">
           {/* AI status banner */}
@@ -251,6 +253,8 @@ function SettingsContent({ shopId }: { shopId: string }) {
             </div>
             <div className="w-3 h-3 rounded-full animate-fynn-pulse" style={{ background: aiEnabled ? 'var(--fyn-success)' : 'var(--fyn-purple)' }} />
           </div>
+
+          <ShopProfileCard shopId={shopId} />
 
           {/* Integrations */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-[18px]">
@@ -411,20 +415,14 @@ function SettingsContent({ shopId }: { shopId: string }) {
 
           {/* Model list */}
           <div className="fynn-card p-[22px] mb-[18px]">
-            <CardTitle icon={Sparkles} color="var(--fyn-purple)">Nieuwste OpenRouter-modellen</CardTitle>
+            <CardTitle icon={Sparkles} color="var(--fyn-purple)">Alle OpenRouter-modellen</CardTitle>
             <div className="fynn-hint -mt-2 mb-3">
-              {live ? 'Live van openrouter.ai — prijs per 1M tokens (input / output). Klik om als standaardmodel te kiezen.' : 'Modellijst van OpenRouter is nu niet bereikbaar.'}
+              {live
+                ? 'Live van openrouter.ai — prijs per 1M tokens (input / output). Klik op een model om het als standaardmodel te kiezen en sla daarna op.'
+                : 'Modellijst van OpenRouter is nu niet bereikbaar.'}
             </div>
-            {featuredModels(models).map(m => (
-              <button key={m.id} type="button" onClick={() => setValues(v => ({ ...v, openrouter_model: m.id }))}
-                className="fynn-well w-full flex items-center justify-between gap-3 px-3.5 py-[11px] mb-2 text-left cursor-pointer" style={{ borderRadius: 10 }}>
-                <div className="min-w-0 truncate">
-                  <code className="text-[12.5px]" style={{ color: 'var(--fyn-blue)' }}>{m.id}</code>
-                  <span className="text-xs ml-2" style={{ color: 'var(--text-m)' }}>{m.name} · {Math.round(m.context / 1000)}K context</span>
-                </div>
-                <span className="text-xs font-bold flex-none" style={{ color: '#10b981' }}>{formatPrice(m)}</span>
-              </button>
-            ))}
+            <ModelBrowser models={models} selected={values.openrouter_model ?? defaultModel}
+              onSelect={id => setValues(v => ({ ...v, openrouter_model: id }))} />
           </div>
 
           {/* Etsy setup guide */}
