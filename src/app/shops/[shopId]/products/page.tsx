@@ -1,12 +1,13 @@
 'use client'
 
-import { use, useState, useEffect } from 'react'
+import { use, useState, useEffect, useCallback } from 'react'
 import { Search, TrendingUp, Package, Shirt, ShoppingBag, Coffee, Smartphone, Image as ImageIcon, Sparkles, Home } from 'lucide-react'
 import { Topbar } from '@/components/layout/topbar'
 import { PageBody } from '@/components/layout/app-shell'
 import { euro } from '@/lib/labels'
 import { useAiMode, SETTINGS_CHANGED_EVENT } from '@/hooks/use-ai-mode'
 import { DemoNotice } from '@/components/layout/demo-notice'
+import { DesignReview, CHECKER } from '@/components/products/DesignReview'
 
 interface Product {
   id: string
@@ -18,6 +19,7 @@ interface Product {
   status: string
   sales_count: number
   tags: string
+  design_url?: string | null
   created_at: string
 }
 
@@ -41,6 +43,7 @@ const THUMBS = [
 const STATUS: Record<string, { bg: string; label: string }> = {
   listed: { bg: 'rgba(16,185,129,.9)', label: 'Listed' },
   draft: { bg: 'rgba(0,0,0,.45)', label: 'Concept' },
+  review: { bg: 'rgba(143,57,172,.9)', label: 'Te beoordelen' },
   sold_out: { bg: 'rgba(239,68,68,.9)', label: 'Uitverkocht' },
 }
 
@@ -68,18 +71,28 @@ export default function ProductsPage({ params }: { params: Promise<{ shopId: str
   const [category, setCategory] = useState('')
   const [status, setStatus] = useState('')
 
+  const load = useCallback(() => fetch(`/api/shops/${shopId}/products`).then(r => r.json()).then(data => {
+    if (Array.isArray(data)) setRealProducts(data)
+  }).catch(() => {}), [shopId])
+
   useEffect(() => {
-    const load = () => fetch(`/api/shops/${shopId}/products`).then(r => r.json()).then(data => {
-      if (Array.isArray(data)) setRealProducts(data)
-    }).catch(() => {})
     load()
+    // Luna adds designs while the page is open
+    const interval = setInterval(load, 15000)
     window.addEventListener(SETTINGS_CHANGED_EVENT, load)
-    return () => window.removeEventListener(SETTINGS_CHANGED_EVENT, load)
-  }, [shopId])
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener(SETTINGS_CHANGED_EVENT, load)
+    }
+  }, [load])
+
+  // Designs awaiting review get their own section; rejected ones are hidden
+  const toReview = realProducts.filter(p => p.status === 'review')
+  const catalog = realProducts.filter(p => p.status !== 'review' && p.status !== 'rejected')
 
   // Example products only in demo mode, and only while there are no real ones
-  const demo = showDemoData && realProducts.length === 0
-  const products = demo ? DEMO_PRODUCTS : realProducts
+  const demo = showDemoData && catalog.length === 0 && toReview.length === 0
+  const products = demo ? DEMO_PRODUCTS : catalog
 
   const categories = [...new Set(products.map(p => p.category).filter(Boolean))].sort()
   const q = query.trim().toLowerCase()
@@ -94,6 +107,7 @@ export default function ProductsPage({ params }: { params: Promise<{ shopId: str
       <Topbar title="Producten" subtitle={`${products.length} producten in de catalogus`} />
       <PageBody>
         {demo && <DemoNotice />}
+        <DesignReview shopId={shopId} products={toReview.map(p => ({ ...p, design_url: p.design_url ?? null }))} onChange={load} />
         <div className="flex flex-wrap gap-2.5 items-center mb-[18px]">
           <div className="flex items-center gap-[9px] flex-1 min-w-[220px] h-[42px] px-3.5 rounded-[10px]"
             style={{ background: 'var(--card)', border: '1.5px solid var(--input-border)' }}>
@@ -126,8 +140,10 @@ export default function ProductsPage({ params }: { params: Promise<{ shopId: str
               const Icon = categoryIcon(p.category)
               return (
                 <div key={p.id} className="fynn-card overflow-hidden">
-                  <div className="h-[148px] flex items-center justify-center relative" style={{ background: THUMBS[i % THUMBS.length] }}>
-                    <Icon className="w-10 h-10" style={{ color: 'rgba(255,255,255,.92)' }} />
+                  <div className="h-[148px] flex items-center justify-center relative" style={{ background: p.design_url ? CHECKER : THUMBS[i % THUMBS.length] }}>
+                    {p.design_url
+                      ? <img src={p.design_url} alt={p.title} className="w-full h-full object-contain p-2.5" />
+                      : <Icon className="w-10 h-10" style={{ color: 'rgba(255,255,255,.92)' }} />}
                     <span className="absolute top-2.5 right-2.5 px-2.5 py-[3px] rounded-full text-white text-[11px] font-bold"
                       style={{ background: st.bg, backdropFilter: 'blur(4px)' }}>{st.label}</span>
                   </div>

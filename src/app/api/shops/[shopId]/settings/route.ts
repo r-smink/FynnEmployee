@@ -5,7 +5,7 @@ import { purgeDemoDataIfLive } from '@/lib/demo-data'
 
 export const dynamic = 'force-dynamic'
 
-const GLOBAL_KEYS = ['openrouter_api_key', 'openrouter_model']
+const GLOBAL_KEYS = ['openrouter_api_key', 'openrouter_model', 'openrouter_image_model', 'luna_daily_designs']
 // The Etsy and Printful clients read their keys from the global settings, so store them there too
 const INTEGRATION_KEYS = ['etsy_api_key', 'etsy_api_secret', 'printful_api_key']
 
