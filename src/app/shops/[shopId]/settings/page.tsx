@@ -195,11 +195,11 @@ function SettingsContent({ shopId }: { shopId: string }) {
   const connectEtsy = async () => {
     setEtsyConnecting(true)
     setEtsyError(null)
-    if (values.etsy_api_key) {
+    if (values.etsy_api_key || values.etsy_api_secret) {
       const res = await fetch(`/api/shops/${shopId}/settings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ etsy_api_key: values.etsy_api_key }),
+        body: JSON.stringify({ etsy_api_key: values.etsy_api_key, etsy_api_secret: values.etsy_api_secret }),
       }).catch(() => null)
       if (!res?.ok) {
         setEtsyError('Opslaan mislukt, probeer het opnieuw')
@@ -300,6 +300,9 @@ function SettingsContent({ shopId }: { shopId: string }) {
                   <input type="password" className="fynn-inp mb-3"
                     placeholder={storedKeys.etsy_api_key ? `${storedKeys.etsy_api_key}  (opgeslagen)` : 'Je Etsy-app keystring…'}
                     value={values.etsy_api_key || ''} onChange={e => setValues(v => ({ ...v, etsy_api_key: e.target.value }))} />
+                  <input type="password" className="fynn-inp mb-3"
+                    placeholder={storedKeys.etsy_api_secret ? `${storedKeys.etsy_api_secret}  (opgeslagen)` : 'Je Etsy-app shared secret…'}
+                    value={values.etsy_api_secret || ''} onChange={e => setValues(v => ({ ...v, etsy_api_secret: e.target.value }))} />
                   {etsyError && (
                     <p className="text-xs px-3 py-2 rounded-lg mb-3" style={{ background: 'var(--fyn-danger-light)', color: '#b91c1c' }}>{etsyError}</p>
                   )}

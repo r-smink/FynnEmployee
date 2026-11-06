@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { exchangeCodeForToken, getShop } from '@/integrations/etsy/client'
 import { getSetting } from '@/lib/ai'
+import { getPublicOrigin, getEtsyRedirectUri } from '@/lib/public-origin'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,33 +11,33 @@ export async function GET(request: NextRequest) {
   const state = searchParams.get('state')
   const error = searchParams.get('error')
 
+  // Redirect against the public origin; request.url is the internal address behind a proxy
+  const origin = getPublicOrigin(request)
+  const back = (query: string) => NextResponse.redirect(new URL('/settings?' + query, origin))
+
   if (error) {
-    return NextResponse.redirect(new URL('/settings?etsy_error=' + encodeURIComponent(error), request.url))
+    return back('etsy_error=' + encodeURIComponent(error))
   }
 
   if (!code || !state) {
-    return NextResponse.redirect(new URL('/settings?etsy_error=missing_params', request.url))
+    return back('etsy_error=missing_params')
   }
 
   // Verify state
   const savedState = getSetting('etsy_oauth_state')
   if (state !== savedState) {
-    return NextResponse.redirect(new URL('/settings?etsy_error=invalid_state', request.url))
+    return back('etsy_error=invalid_state')
   }
 
   try {
-    const host = request.headers.get('host') || 'localhost:3000'
-    const protocol = host.startsWith('localhost') ? 'http' : 'https'
-    const redirectUri = `${protocol}://${host}/api/etsy/callback`
-
-    await exchangeCodeForToken(code, redirectUri)
+    await exchangeCodeForToken(code, getEtsyRedirectUri(request))
 
     // Fetch and store shop info
     await getShop()
 
-    return NextResponse.redirect(new URL('/settings?etsy_connected=true', request.url))
+    return back('etsy_connected=true')
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Token exchange failed'
-    return NextResponse.redirect(new URL('/settings?etsy_error=' + encodeURIComponent(msg), request.url))
+    return back('etsy_error=' + encodeURIComponent(msg))
   }
 }

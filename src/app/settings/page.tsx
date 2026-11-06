@@ -37,6 +37,12 @@ const etsyKeys: ApiKeyField[] = [
     placeholder: 'Your Etsy app keystring...',
     description: 'From your Etsy Seller App at etsy.com/developers',
   },
+  {
+    label: 'Etsy Shared Secret',
+    key: 'etsy_api_secret',
+    placeholder: 'Your Etsy app shared secret...',
+    description: 'Shown next to the keystring in your Etsy app; required by the Etsy API',
+  },
 ]
 
 const agents = [
@@ -164,11 +170,11 @@ function SettingsContent() {
 
   const connectEtsy = async () => {
     // First save the Etsy API key if entered
-    if (values.etsy_api_key) {
+    if (values.etsy_api_key || values.etsy_api_secret) {
       await fetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ etsy_api_key: values.etsy_api_key }),
+        body: JSON.stringify({ etsy_api_key: values.etsy_api_key, etsy_api_secret: values.etsy_api_secret }),
       })
     }
 
