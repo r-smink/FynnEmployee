@@ -1,13 +1,15 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import type { ModelInfo } from '@/app/api/models/route'
+import type { ModelInfo, ImageModelInfo } from '@/app/api/models/route'
 
-export type { ModelInfo }
+export type { ModelInfo, ImageModelInfo }
 
 interface ModelsState {
   models: ModelInfo[]
+  imageModels: ImageModelInfo[]
   defaultModel: string
+  imageModel: string
   live: boolean
   loading: boolean
 }
@@ -16,13 +18,16 @@ let cached: Omit<ModelsState, 'loading'> | null = null
 
 export function useModels() {
   const [state, setState] = useState<ModelsState>(
-    cached ? { ...cached, loading: false } : { models: [], defaultModel: '', live: false, loading: true }
+    cached ? { ...cached, loading: false } : { models: [], imageModels: [], defaultModel: '', imageModel: '', live: false, loading: true }
   )
 
   useEffect(() => {
     if (cached) return
     fetch('/api/models').then(r => r.json()).then(data => {
-      cached = { models: data.models, defaultModel: data.defaultModel, live: data.live }
+      cached = {
+        models: data.models, imageModels: data.imageModels ?? [], defaultModel: data.defaultModel,
+        imageModel: data.imageModel ?? '', live: data.live,
+      }
       setState({ ...cached, loading: false })
     }).catch(() => setState(s => ({ ...s, loading: false })))
   }, [])

@@ -7,6 +7,8 @@ export const dynamic = 'force-dynamic'
 const ALLOWED_KEYS = [
   'openrouter_api_key',
   'openrouter_model',
+  'openrouter_image_model',
+  'luna_daily_designs',
   'etsy_api_key',
   'etsy_api_secret',
   'printful_api_key',
