@@ -5,6 +5,24 @@ const ETSY_API_BASE = 'https://openapi.etsy.com/v3'
 const ETSY_AUTH_URL = 'https://www.etsy.com/oauth/connect'
 const ETSY_TOKEN_URL = 'https://api.etsy.com/v3/public/oauth/token'
 
+// ─── Keys ─────────────────────────────────────────────────
+
+// The OAuth client_id is the bare keystring (tolerate a pasted "keystring:secret")
+function getKeystring(): string | null {
+  const key = getSetting('etsy_api_key')
+  return key ? key.split(':')[0].trim() : null
+}
+
+// Etsy requires "keystring:shared_secret" in the x-api-key header
+function getApiKeyHeader(): string {
+  const key = getSetting('etsy_api_key')
+  if (!key) throw new Error('Etsy API key not configured')
+  if (key.includes(':')) return key
+  const secret = getSetting('etsy_api_secret')
+  if (!secret) throw new Error('Etsy shared secret ontbreekt. Vul de Shared Secret van je Etsy-app in bij Instellingen.')
+  return `${key}:${secret}`
+}
+
 // ─── OAuth 2.0 PKCE Helpers ───────────────────────────────
 
 function generateCodeVerifier(): string {
@@ -20,8 +38,9 @@ function generateState(): string {
 }
 
 export function getOAuthUrl(redirectUri: string): { url: string; state: string; codeVerifier: string } {
-  const apiKey = getSetting('etsy_api_key')
+  const apiKey = getKeystring()
   if (!apiKey) throw new Error('Etsy API key not configured')
+  getApiKeyHeader() // fail early, before the Etsy round trip, if the shared secret is missing
 
   const state = generateState()
   const codeVerifier = generateCodeVerifier()
@@ -64,7 +83,7 @@ export async function exchangeCodeForToken(
   code: string,
   redirectUri: string
 ): Promise<{ access_token: string; refresh_token: string; expires_in: number }> {
-  const apiKey = getSetting('etsy_api_key')
+  const apiKey = getKeystring()
   const codeVerifier = getSetting('etsy_oauth_code_verifier')
   if (!apiKey || !codeVerifier) throw new Error('OAuth state missing')
 
@@ -96,7 +115,7 @@ export async function exchangeCodeForToken(
 }
 
 export async function refreshAccessToken(): Promise<string> {
-  const apiKey = getSetting('etsy_api_key')
+  const apiKey = getKeystring()
   const refreshToken = getSetting('etsy_refresh_token')
   if (!apiKey || !refreshToken) throw new Error('No refresh token available')
 
@@ -143,13 +162,13 @@ export async function etsyFetch<T = unknown>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const apiKey = getSetting('etsy_api_key')
+  const apiKey = getApiKeyHeader()
   const accessToken = await getAccessToken()
 
   const response = await fetch(`${ETSY_API_BASE}${endpoint}`, {
     ...options,
     headers: {
-      'x-api-key': apiKey!,
+      'x-api-key': apiKey,
       'Authorization': `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
       ...options.headers,
