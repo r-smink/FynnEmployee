@@ -186,14 +186,11 @@ export async function etsyFetch<T = unknown>(
 // ─── Shop ─────────────────────────────────────────────────
 
 export async function getShop(): Promise<EtsyShop> {
-  // First get the user to find their shop
-  const user = await etsyFetch<{ user_id: number }>('/application/users/me')
-  const shops = await etsyFetch<{ results: EtsyShop[] }>(
-    `/application/users/${user.user_id}/shops`
-  )
-  if (shops.results.length === 0) throw new Error('No Etsy shop found')
+  // /users/me returns the shop_id of the authenticated user's shop (absent if they have none)
+  const user = await etsyFetch<{ user_id: number; shop_id?: number }>('/application/users/me')
+  if (!user.shop_id) throw new Error('Geen Etsy-shop gevonden voor dit account')
 
-  const shop = shops.results[0]
+  const shop = await etsyFetch<EtsyShop>(`/application/shops/${user.shop_id}`)
   setSetting('etsy_shop_id', String(shop.shop_id))
   setSetting('etsy_shop_name', shop.shop_name)
   return shop
