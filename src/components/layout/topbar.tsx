@@ -3,6 +3,7 @@
 import { Sparkles, Zap } from 'lucide-react'
 import { useTheme } from '@/hooks/use-theme'
 import { useAiMode } from '@/hooks/use-ai-mode'
+import { LiveStatus } from './live-status'
 
 interface TopbarProps {
   title: string
@@ -44,6 +45,7 @@ export function Topbar({ title, subtitle, connected = true, actions }: TopbarPro
           <Zap className="w-3.5 h-3.5" /> Demo
         </button>
       </div>
+      <LiveStatus />
       <div className="flex items-center gap-[7px]">
         <span className={`w-2 h-2 rounded-full ${connected ? 'animate-fynn-pulse' : ''}`}
           style={{ background: connected ? '#10b981' : 'var(--text-s)', boxShadow: connected ? '0 0 8px #10b981' : 'none' }} />

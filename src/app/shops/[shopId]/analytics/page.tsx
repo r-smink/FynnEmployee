@@ -6,17 +6,22 @@ import { Topbar } from '@/components/layout/topbar'
 import { PageBody } from '@/components/layout/app-shell'
 import { useAgents } from '@/hooks/use-agents'
 import { euroWhole } from '@/lib/labels'
+import { useAiMode, SETTINGS_CHANGED_EVENT } from '@/hooks/use-ai-mode'
+import { DemoNotice } from '@/components/layout/demo-notice'
+import { lastSevenDays, type OrderLike } from '@/lib/revenue'
 
-const REVENUE = [420, 580, 340, 720, 890, 1150, 780]
-const DAYS = ['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo']
+const DEMO_REVENUE = [420, 580, 340, 720, 890, 1150, 780]
+const DEMO_DAYS = ['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo']
+const DEMO_PREVIOUS = 4136 // makes the demo week show +18%
 
 const DEMO_TOP: [string, number][] = [
   ['Galaxy Stickers', 89], ['Ocean Mug', 58], ['Sunset Tee', 47], ['Space Poster', 41], ['Mountain Tote', 32], ['Mandala Case', 23],
 ]
 
-function revenuePaths() {
-  const W = 900, H = 230, pad = 14, max = Math.max(...REVENUE) * 1.05
-  const pts = REVENUE.map((v, i) => ({ x: (i / (REVENUE.length - 1)) * (W - pad * 2) + pad, y: H - pad - (v / max) * (H - pad * 2) }))
+function revenuePaths(revenue: number[]) {
+  // With no revenue yet the line sits flat on the bottom instead of dividing by zero
+  const W = 900, H = 230, pad = 14, max = Math.max(1, ...revenue) * 1.05
+  const pts = revenue.map((v, i) => ({ x: (i / (revenue.length - 1)) * (W - pad * 2) + pad, y: H - pad - (v / max) * (H - pad * 2) }))
   const line = 'M' + pts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' L')
   const area = `${line} L${pts[pts.length - 1].x.toFixed(1)},${H} L${pts[0].x.toFixed(1)},${H} Z`
   return { line, area, pts }
@@ -25,18 +30,37 @@ function revenuePaths() {
 export default function AnalyticsPage({ params }: { params: Promise<{ shopId: string }> }) {
   const { shopId } = use(params)
   const { agents } = useAgents(shopId)
-  const [top, setTop] = useState<[string, number][]>(DEMO_TOP)
+  const { showDemoData } = useAiMode()
+  const [realTop, setRealTop] = useState<[string, number][]>([])
+  const [orders, setOrders] = useState<OrderLike[]>([])
 
   useEffect(() => {
-    fetch(`/api/shops/${shopId}/products`).then(r => r.json()).then((data: { title: string; sales_count: number }[]) => {
-      if (!Array.isArray(data)) return
-      const sold = data.filter(p => p.sales_count > 0).sort((a, b) => b.sales_count - a.sales_count).slice(0, 6)
-      if (sold.length > 0) setTop(sold.map(p => [p.title, p.sales_count]))
-    }).catch(() => {})
+    const load = () => {
+      fetch(`/api/shops/${shopId}/products`).then(r => r.json()).then((data: { title: string; sales_count: number }[]) => {
+        if (!Array.isArray(data)) return
+        const sold = data.filter(p => p.sales_count > 0).sort((a, b) => b.sales_count - a.sales_count).slice(0, 6)
+        setRealTop(sold.map(p => [p.title, p.sales_count]))
+      }).catch(() => {})
+      fetch(`/api/shops/${shopId}/orders`).then(r => r.json()).then(data => {
+        if (Array.isArray(data)) setOrders(data)
+      }).catch(() => {})
+    }
+    load()
+    window.addEventListener(SETTINGS_CHANGED_EVENT, load)
+    return () => window.removeEventListener(SETTINGS_CHANGED_EVENT, load)
   }, [shopId])
 
-  const { line, area, pts } = revenuePaths()
+  // Example figures only in demo mode while there are no real orders
+  const demo = showDemoData && orders.length === 0
+  const week = lastSevenDays(orders)
+  const REVENUE = demo ? DEMO_REVENUE : week.values
+  const DAYS = demo ? DEMO_DAYS : week.labels
+  const previous = demo ? DEMO_PREVIOUS : week.previous
+  const top = demo ? DEMO_TOP : realTop
+
+  const { line, area, pts } = revenuePaths(REVENUE)
   const total = REVENUE.reduce((a, b) => a + b, 0)
+  const change = previous > 0 ? Math.round((total - previous) / previous * 100) : null
   const topMax = Math.max(1, ...top.map(t => t[1]))
   const agentMax = Math.max(1, ...agents.map(a => a.tasks_completed))
 
@@ -44,6 +68,7 @@ export default function AnalyticsPage({ params }: { params: Promise<{ shopId: st
     <>
       <Topbar title="Analytics" subtitle="Overzicht van je winkelprestaties" />
       <PageBody>
+        {demo && <DemoNotice />}
         <div className="fynn-card px-6 py-[22px] mb-[18px]">
           <div className="flex items-center justify-between mb-[18px]">
             <div className="flex items-center gap-[9px]">
@@ -52,7 +77,12 @@ export default function AnalyticsPage({ params }: { params: Promise<{ shopId: st
             </div>
             <div className="flex items-baseline gap-2">
               <span className="text-[22px] font-bold" style={{ color: 'var(--text-h)' }}>{euroWhole(total)}</span>
-              <span className="px-2 py-0.5 rounded-md text-xs font-bold" style={{ background: 'var(--fyn-success-light)', color: '#047857' }}>+18%</span>
+              {change !== null && (
+                <span className="px-2 py-0.5 rounded-md text-xs font-bold"
+                  style={change >= 0 ? { background: 'var(--fyn-success-light)', color: '#047857' } : { background: 'var(--fyn-danger-light)', color: '#b91c1c' }}>
+                  {change >= 0 ? '+' : ''}{change}%
+                </span>
+              )}
             </div>
           </div>
           <svg viewBox="0 0 900 230" preserveAspectRatio="none" className="w-full h-[220px]">
@@ -83,6 +113,9 @@ export default function AnalyticsPage({ params }: { params: Promise<{ shopId: st
               <BarChart3 className="w-[18px] h-[18px]" style={{ color: 'var(--fyn-purple)' }} />
               <h3 className="fynn-section-title">Topproducten op verkoop</h3>
             </div>
+            {top.length === 0 && (
+              <p className="text-[13px] py-6 text-center" style={{ color: 'var(--text-m)' }}>Nog geen verkopen</p>
+            )}
             {top.map(([name, sales]) => (
               <div key={name} className="mb-3.5">
                 <div className="flex justify-between text-[12.5px] mb-1.5">

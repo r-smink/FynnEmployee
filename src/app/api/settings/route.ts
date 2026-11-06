@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSetting, setSetting, getAiMode, hasAiKey, isAiEnabled } from '@/lib/ai'
+import { getLiveStatus, purgeDemoDataIfLive } from '@/lib/demo-data'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,7 +26,7 @@ export async function GET() {
   settings['ai_enabled'] = isAiEnabled() ? 'true' : 'false'
   settings['ai_mode'] = getAiMode()
   settings['has_api_key'] = hasAiKey() ? 'true' : 'false'
-  return NextResponse.json(settings)
+  return NextResponse.json({ ...settings, ...getLiveStatus() })
 }
 
 export async function POST(request: NextRequest) {
@@ -40,6 +41,7 @@ export async function POST(request: NextRequest) {
       setSetting(key, value.trim())
     }
   }
+  purgeDemoDataIfLive()
 
   return NextResponse.json({ success: true })
 }

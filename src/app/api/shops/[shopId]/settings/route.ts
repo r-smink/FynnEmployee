@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSetting, setSetting, getAiMode, hasAiKey, isAiEnabled } from '@/lib/ai'
 import { getShopSetting } from '@/lib/shop-settings'
+import { purgeDemoDataIfLive } from '@/lib/demo-data'
 
 export const dynamic = 'force-dynamic'
 
@@ -46,6 +47,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       }
     }
   }
+  // Saving the OpenRouter key can be what turns AI Live on
+  purgeDemoDataIfLive()
 
   return NextResponse.json({ success: true })
 }

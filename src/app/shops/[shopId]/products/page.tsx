@@ -5,6 +5,8 @@ import { Search, TrendingUp, Package, Shirt, ShoppingBag, Coffee, Smartphone, Im
 import { Topbar } from '@/components/layout/topbar'
 import { PageBody } from '@/components/layout/app-shell'
 import { euro } from '@/lib/labels'
+import { useAiMode, SETTINGS_CHANGED_EVENT } from '@/hooks/use-ai-mode'
+import { DemoNotice } from '@/components/layout/demo-notice'
 
 interface Product {
   id: string
@@ -60,16 +62,24 @@ function parseTags(raw: string): string[] {
 
 export default function ProductsPage({ params }: { params: Promise<{ shopId: string }> }) {
   const { shopId } = use(params)
-  const [products, setProducts] = useState<Product[]>(DEMO_PRODUCTS)
+  const { showDemoData } = useAiMode()
+  const [realProducts, setRealProducts] = useState<Product[]>([])
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('')
   const [status, setStatus] = useState('')
 
   useEffect(() => {
-    fetch(`/api/shops/${shopId}/products`).then(r => r.json()).then(data => {
-      if (Array.isArray(data) && data.length > 0) setProducts(data)
+    const load = () => fetch(`/api/shops/${shopId}/products`).then(r => r.json()).then(data => {
+      if (Array.isArray(data)) setRealProducts(data)
     }).catch(() => {})
+    load()
+    window.addEventListener(SETTINGS_CHANGED_EVENT, load)
+    return () => window.removeEventListener(SETTINGS_CHANGED_EVENT, load)
   }, [shopId])
+
+  // Example products only in demo mode, and only while there are no real ones
+  const demo = showDemoData && realProducts.length === 0
+  const products = demo ? DEMO_PRODUCTS : realProducts
 
   const categories = [...new Set(products.map(p => p.category).filter(Boolean))].sort()
   const q = query.trim().toLowerCase()
@@ -83,6 +93,7 @@ export default function ProductsPage({ params }: { params: Promise<{ shopId: str
     <>
       <Topbar title="Producten" subtitle={`${products.length} producten in de catalogus`} />
       <PageBody>
+        {demo && <DemoNotice />}
         <div className="flex flex-wrap gap-2.5 items-center mb-[18px]">
           <div className="flex items-center gap-[9px] flex-1 min-w-[220px] h-[42px] px-3.5 rounded-[10px]"
             style={{ background: 'var(--card)', border: '1.5px solid var(--input-border)' }}>
@@ -103,7 +114,11 @@ export default function ProductsPage({ params }: { params: Promise<{ shopId: str
         </div>
 
         {visible.length === 0 ? (
-          <div className="fynn-card py-16 text-center text-[13px]" style={{ color: 'var(--text-m)' }}>Geen producten gevonden</div>
+          <div className="fynn-card py-16 text-center text-[13px]" style={{ color: 'var(--text-m)' }}>
+            {products.length === 0
+              ? 'Nog geen producten. Zodra Marcus listings op Etsy zet, verschijnen ze hier.'
+              : 'Geen producten gevonden'}
+          </div>
         ) : (
           <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(250px,1fr))' }}>
             {visible.map((p, i) => {

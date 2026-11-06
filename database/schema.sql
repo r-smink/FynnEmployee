@@ -63,6 +63,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     input_data      TEXT,
     output_data     TEXT,
     progress        INTEGER DEFAULT 0,
+    demo            INTEGER DEFAULT 0,
     started_at      TEXT,
     completed_at    TEXT,
     created_at      TEXT DEFAULT (datetime('now'))
@@ -77,6 +78,7 @@ CREATE TABLE IF NOT EXISTS activity_log (
     message     TEXT NOT NULL,
     type        TEXT NOT NULL DEFAULT 'info',
     metadata    TEXT,
+    demo        INTEGER DEFAULT 0,
     created_at  TEXT DEFAULT (datetime('now'))
 );
 

@@ -24,7 +24,7 @@ export default function DashboardPage({ params }: { params: Promise<{ shopId: st
     <>
       <Topbar title="Commandocentrum" subtitle="Monitor je AI-personeel in realtime" connected={connected} />
       <PageBody>
-        <MetricsBar agents={agents} />
+        <MetricsBar shopId={shopId} agents={agents} />
 
         <div className="flex items-center justify-between mb-3.5">
           <div className="flex items-center gap-[9px]">

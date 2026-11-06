@@ -62,14 +62,26 @@ export const db = globalForDb.__fynnDb || (globalForDb.__fynnDb = createDb())
 
 // Columns added after the first release (CREATE TABLE IF NOT EXISTS won't add them).
 // Runs on every module load so a hot-reloaded dev server with a cached connection also migrates.
+// Adds a column once. The check and ALTER share an IMMEDIATE transaction, so parallel processes
+// opening the same file (e.g. next build workers) can't both try to add it.
+function addColumn(database: Database.Database, table: string, column: string, definition: string, backfill?: string) {
+  database.transaction(() => {
+    const cols = database.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]
+    if (cols.some(c => c.name === column)) return
+    database.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`)
+    if (backfill) database.exec(backfill)
+  }).immediate()
+}
+
 function migrate(database: Database.Database) {
-  const agentCols = database.prepare('PRAGMA table_info(agents)').all() as { name: string }[]
-  if (!agentCols.some(c => c.name === 'model')) {
-    database.exec('ALTER TABLE agents ADD COLUMN model TEXT')
-  }
-  if (!agentCols.some(c => c.name === 'enabled')) {
-    database.exec('ALTER TABLE agents ADD COLUMN enabled INTEGER DEFAULT 1')
-  }
+  addColumn(database, 'agents', 'model', 'TEXT')
+  addColumn(database, 'agents', 'enabled', 'INTEGER DEFAULT 1')
+
+  // demo = 1 marks work agents simulated in demo mode, so it can be wiped when going live.
+  // Existing rows are classified once: a task without AI output was simulated.
+  addColumn(database, 'tasks', 'demo', 'INTEGER DEFAULT 0', 'UPDATE tasks SET demo = 1 WHERE output_data IS NULL')
+  addColumn(database, 'activity_log', 'demo', 'INTEGER DEFAULT 0',
+    'UPDATE activity_log SET demo = 1 WHERE task_id IS NULL OR task_id IN (SELECT id FROM tasks WHERE demo = 1)')
 }
 migrate(db)
 

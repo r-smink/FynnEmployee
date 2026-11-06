@@ -15,7 +15,7 @@ export default function DashboardPage() {
     <>
       <Topbar title="Command Center" subtitle="Monitor your AI workforce in real-time" connected={connected} />
       <div className="p-6 space-y-6">
-        <MetricsBar agents={agents} />
+        <MetricsBar shopId="default" agents={agents} />
 
         <div>
           <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Agent Workforce</h3>

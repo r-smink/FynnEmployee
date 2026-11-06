@@ -16,6 +16,8 @@ export abstract class BaseAgent {
   enabled: boolean
   status: AgentStatus = 'idle'
   currentTask: Task | null = null
+  // Whether the current task is simulated (demo mode at the time it started)
+  private demoTask = false
 
   constructor(config: AgentConfig) {
     this.id = config.id
@@ -66,10 +68,17 @@ export abstract class BaseAgent {
     if (!this.currentTask) this.setStatus(enabled ? 'idle' : 'paused')
   }
 
+  // A simulated task that is still running after AI Live was switched on: its output is thrown away
+  private isStaleDemo(): boolean {
+    return this.demoTask && isAiEnabled()
+  }
+
   log(message: string, type: 'info' | 'success' | 'warning' | 'error' | 'thinking' = 'info', taskId?: string) {
+    if (this.isStaleDemo()) return
+    const demo = this.currentTask ? this.demoTask : !isAiEnabled()
     run(
-      'INSERT INTO activity_log (shop_id, agent_id, task_id, message, type) VALUES (?, ?, ?, ?, ?)',
-      this.shopId, this.id, taskId || null, message, type
+      'INSERT INTO activity_log (shop_id, agent_id, task_id, message, type, demo) VALUES (?, ?, ?, ?, ?, ?)',
+      this.shopId, this.id, taskId || null, message, type, demo ? 1 : 0
     )
     emitAgentEvent({
       shopId: this.shopId,
@@ -93,9 +102,10 @@ export abstract class BaseAgent {
 
   async processTask(task: Task): Promise<void> {
     this.currentTask = task
+    this.demoTask = !isAiEnabled()
     this.setStatus('working')
 
-    run('UPDATE tasks SET status = \'in_progress\', started_at = datetime(\'now\') WHERE id = ?', task.id)
+    run('UPDATE tasks SET status = \'in_progress\', demo = ?, started_at = datetime(\'now\') WHERE id = ?', this.demoTask ? 1 : 0, task.id)
     run('UPDATE agents SET current_task_id = ? WHERE id = ? AND shop_id = ?', task.id, this.id, this.shopId)
 
     emitAgentEvent({
@@ -107,11 +117,19 @@ export abstract class BaseAgent {
     })
 
     try {
-      if (isAiEnabled()) {
+      if (!this.demoTask) {
         await this.processWithAi(task)
       } else {
         const steps = this.getSimulationSteps(task)
         await this.simulateWork(task.id, steps)
+      }
+
+      if (this.isStaleDemo()) {
+        // AI Live was switched on mid-simulation: drop the task instead of counting it
+        run('DELETE FROM tasks WHERE id = ?', task.id)
+        run('UPDATE agents SET current_task_id = NULL WHERE id = ? AND shop_id = ?', this.id, this.shopId)
+        this.finishTask()
+        return
       }
 
       run(
@@ -144,7 +162,12 @@ export abstract class BaseAgent {
       })
     }
 
+    this.finishTask()
+  }
+
+  private finishTask() {
     this.currentTask = null
+    this.demoTask = false
     this.setStatus(this.enabled ? 'idle' : 'paused')
   }
 
@@ -181,6 +204,7 @@ export abstract class BaseAgent {
 
   async simulateWork(taskId: string, steps: SimulationStep[]): Promise<void> {
     for (const step of steps) {
+      if (this.isStaleDemo()) break
       this.log(step.message, step.type, taskId)
       this.updateProgress(taskId, step.progress, step.message)
       await new Promise(resolve => setTimeout(resolve, step.durationMs))
@@ -191,8 +215,8 @@ export abstract class BaseAgent {
     const { type, title, description } = this.generateTask()
     const id = uuid()
     run(
-      'INSERT INTO tasks (id, shop_id, agent_id, type, title, description, status) VALUES (?, ?, ?, ?, ?, ?, \'queued\')',
-      id, this.shopId, this.id, type, title, description
+      'INSERT INTO tasks (id, shop_id, agent_id, type, title, description, status, demo) VALUES (?, ?, ?, ?, ?, ?, \'queued\', ?)',
+      id, this.shopId, this.id, type, title, description, isAiEnabled() ? 0 : 1
     )
     return get<Task>('SELECT * FROM tasks WHERE id = ?', id)!
   }

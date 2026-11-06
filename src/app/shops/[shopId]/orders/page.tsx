@@ -5,6 +5,8 @@ import { Clock, RefreshCw, CheckCircle2, XCircle, Truck } from 'lucide-react'
 import { Topbar } from '@/components/layout/topbar'
 import { PageBody } from '@/components/layout/app-shell'
 import { euro } from '@/lib/labels'
+import { useAiMode, SETTINGS_CHANGED_EVENT } from '@/hooks/use-ai-mode'
+import { DemoNotice } from '@/components/layout/demo-notice'
 
 interface Order {
   id: string
@@ -50,13 +52,21 @@ const COLS: [string, 'l' | 'c' | 'r'][] = [
 
 export default function OrdersPage({ params }: { params: Promise<{ shopId: string }> }) {
   const { shopId } = use(params)
-  const [orders, setOrders] = useState<Order[]>(DEMO_ORDERS)
+  const { showDemoData } = useAiMode()
+  const [realOrders, setRealOrders] = useState<Order[]>([])
 
   useEffect(() => {
-    fetch(`/api/shops/${shopId}/orders`).then(r => r.json()).then(data => {
-      if (Array.isArray(data) && data.length > 0) setOrders(data)
+    const load = () => fetch(`/api/shops/${shopId}/orders`).then(r => r.json()).then(data => {
+      if (Array.isArray(data)) setRealOrders(data)
     }).catch(() => {})
+    load()
+    window.addEventListener(SETTINGS_CHANGED_EVENT, load)
+    return () => window.removeEventListener(SETTINGS_CHANGED_EVENT, load)
   }, [shopId])
+
+  // Example orders only in demo mode, and only while there are no real ones
+  const demo = showDemoData && realOrders.length === 0
+  const orders = demo ? DEMO_ORDERS : realOrders
 
   const revenue = orders.reduce((s, o) => s + (o.total_price || 0), 0)
   const profit = orders.reduce((s, o) => s + (o.profit || 0), 0)
@@ -73,6 +83,7 @@ export default function OrdersPage({ params }: { params: Promise<{ shopId: strin
     <>
       <Topbar title="Bestellingen" subtitle={`${orders.length} bestellingen · ${euro(revenue)} omzet · ${euro(profit)} winst`} />
       <PageBody>
+        {demo && <DemoNotice />}
         <div className="grid gap-4 mb-[18px]" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))' }}>
           {stats.map(s => (
             <div key={s.label} className="fynn-card px-[18px] py-4" style={{ borderRadius: 13 }}>
@@ -96,6 +107,13 @@ export default function OrdersPage({ params }: { params: Promise<{ shopId: strin
                 </tr>
               </thead>
               <tbody>
+                {orders.length === 0 && (
+                  <tr>
+                    <td colSpan={COLS.length} className="py-14 text-center text-[13px]" style={{ color: 'var(--text-m)' }}>
+                      Nog geen bestellingen. Zodra er op Etsy iets verkocht wordt, haalt Aria de bestelling hierheen.
+                    </td>
+                  </tr>
+                )}
                 {orders.map((o) => {
                   const st = STATUS[o.status] || STATUS.new
                   const ful = FULFILLMENT[o.fulfillment_status] || FULFILLMENT.pending

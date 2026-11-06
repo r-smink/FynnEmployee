@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { AI_MODE_EVENT } from './use-ai-mode'
 
 export interface StreamEvent {
   agentId: string
@@ -24,6 +25,13 @@ export function useEventStream(shopId: string) {
   const [agentUpdates, setAgentUpdates] = useState<Map<string, StreamEvent>>(new Map())
   const eventSourceRef = useRef<EventSource | null>(null)
   const activityIdRef = useRef(0)
+
+  // Going live wipes demo activity on the server, so drop it from the feed as well
+  useEffect(() => {
+    const onMode = (e: Event) => { if ((e as CustomEvent<string>).detail === 'live') setActivities([]) }
+    window.addEventListener(AI_MODE_EVENT, onMode)
+    return () => window.removeEventListener(AI_MODE_EVENT, onMode)
+  }, [])
 
   useEffect(() => {
     const es = new EventSource(`/api/shops/${shopId}/stream`)
