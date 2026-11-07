@@ -5,6 +5,9 @@ import { get, run } from '@/lib/db'
 import {
   generateImage, checkDesign, saveDesign, getImageModel, getDailyDesignLimit, MAX_DESIGNS_IN_REVIEW,
 } from '@/lib/images'
+import { pickTheme, findTheme, activeThemes } from '@/lib/theme-store'
+import { isSeasonal, formatMonthDay, type DesignTheme } from '@/lib/themes'
+import { marketSummary, NO_MARKET_DATA } from '@/lib/market-context'
 import type { AgentConfig, Task, SimulationStep, TaskType } from './types'
 
 interface DesignBrief {
@@ -15,13 +18,8 @@ interface DesignBrief {
   price: number
 }
 
-const DESIGN_THEMES = [
-  'Tropical Sunset', 'Mountain Adventure', 'Ocean Waves', 'Floral Botanicals',
-  'Retro Space', 'Minimalist Geometric', 'Watercolor Landscape', 'Boho Mandala',
-  'Vintage Typography', 'Abstract Art Deco', 'Cosmic Galaxy', 'Desert Cactus',
-  'Nordic Forest', 'Japanese Wave', 'Neon City', 'Wildflower Garden',
-  'Celestial Moon', 'Tropical Palm', 'Zen Garden', 'Aurora Borealis',
-]
+// Used when every theme is switched off or out of season
+const FALLBACK_THEME = 'Trending'
 
 const PRODUCT_TYPES = ['T-Shirt', 'Tote Bag', 'Mug', 'Phone Case', 'Poster', 'Sticker Set', 'Pillow Cover', 'Hoodie']
 
@@ -52,6 +50,26 @@ Keep responses under 200 words. Be creative and market-aware.`
     return `Research trending design styles for: ${task.title}. What's hot on Etsy right now? Identify 3 emerging trends with actionable design directions.`
   }
 
+  // The theme a task was made for, from the quoted name in its title
+  private themeOf(task: Task): DesignTheme | undefined {
+    const name = task.title.match(/"([^"]+)"/)?.[1]
+    return name ? findTheme(this.shopId, name) : undefined
+  }
+
+  // Theme notes from the owner plus real Etsy figures for the theme
+  protected async getTaskContext(task: Task): Promise<string | null> {
+    const theme = this.themeOf(task)
+    const product = task.type === 'design_generate' ? task.title.match(/"[^"]+" (.+)$/)?.[1] : undefined
+    const parts: string[] = []
+    if (theme?.notes) parts.push(`Owner's notes for the theme "${theme.name}": ${theme.notes}`)
+    if (task.type === 'design_curate') {
+      parts.push(`Themes the shop is running now: ${activeThemes(this.shopId).map(t => t.name).join(', ') || 'none'}`)
+    }
+    const query = theme ? [theme.search, product].filter(Boolean).join(' ') : ''
+    parts.push((query && await marketSummary(query)) || NO_MARKET_DATA)
+    return parts.join('\n\n')
+  }
+
   // In AI Live, "design" tasks produce a real image: the text model writes the brief, the image model draws it
   async processWithAi(task: Task): Promise<void> {
     if (task.type !== 'design_generate') return super.processWithAi(task)
@@ -66,7 +84,7 @@ Keep responses under 200 words. Be creative and market-aware.`
 
     this.log(`Bedenkt een ontwerp voor: ${task.title}...`, 'thinking', task.id)
     this.updateProgress(task.id, 15, 'Ontwerpbriefing schrijven...')
-    const brief = await this.writeBrief(task, product)
+    const brief = await this.writeBrief(task, product, await this.getTaskContext(task))
     run('UPDATE tasks SET output_data = ? WHERE id = ?', JSON.stringify({ brief }), task.id)
 
     const model = getImageModel()
@@ -113,10 +131,14 @@ Keep responses under 200 words. Be creative and market-aware.`
     return null
   }
 
-  private async writeBrief(task: Task, product: string): Promise<DesignBrief> {
+  private async writeBrief(task: Task, product: string, context: string | null): Promise<DesignBrief> {
     const result = await askAi(
       this.getEffectiveSystemPrompt(),
       `Design a print-on-demand ${product} for: ${task.title}. ${task.description}.
+${context ? `
+${context}
+Use this: pick tags buyers really search for, price within the usual range, and make the design stand out from the fastest rising listings without copying them.
+` : ''}
 Reply with JSON only:
 {"title": "Etsy product title, max 80 chars",
  "concept": "1-2 sentence description for the listing",
@@ -139,21 +161,24 @@ Reply with JSON only:
   }
 
   generateTask(): { type: TaskType; title: string; description: string } {
-    const theme = DESIGN_THEMES[Math.floor(Math.random() * DESIGN_THEMES.length)]
+    const picked = pickTheme(this.shopId)
+    const theme = picked?.name ?? FALLBACK_THEME
     const product = PRODUCT_TYPES[Math.floor(Math.random() * PRODUCT_TYPES.length)]
     const types: TaskType[] = ['design_generate', 'design_curate', 'design_trending']
     const type = types[Math.floor(Math.random() * types.length)]
 
     const titles: Record<string, string> = {
       design_generate: `Design "${theme}" ${product}`,
-      design_curate: `Curate designs for ${product} collection`,
-      design_trending: `Research trending ${theme} styles`,
+      design_curate: `Curate "${theme}" designs for a ${product} collection`,
+      design_trending: `Research trending "${theme}" styles`,
     }
 
     return {
       type,
       title: titles[type],
-      description: `Creating a ${theme.toLowerCase()}-themed design for ${product.toLowerCase()} product line`,
+      description: picked && isSeasonal(picked)
+        ? `Seasonal theme ${theme} (${formatMonthDay(picked.start!)} – ${formatMonthDay(picked.end!)}) for the ${product.toLowerCase()} product line`
+        : `Creating a ${theme.toLowerCase()}-themed design for the ${product.toLowerCase()} product line`,
     }
   }
 

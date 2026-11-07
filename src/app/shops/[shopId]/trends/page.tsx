@@ -5,6 +5,7 @@ import { Search, TrendingUp, Tag, Coins, Flame, Bookmark, X, Loader2, ExternalLi
 import { Topbar } from '@/components/layout/topbar'
 import { PageBody } from '@/components/layout/app-shell'
 import type { TrendReport, PriceBucket, TagStat } from '@/lib/trends'
+import { ThemesCard } from '@/components/trends/ThemesCard'
 
 const nf = new Intl.NumberFormat('nl-NL')
 const money = (v: number, currency: string, digits = 2) =>
@@ -189,6 +190,8 @@ export default function TrendsPage({ params }: { params: Promise<{ shopId: strin
             </div>
           )}
         </div>
+
+        <ThemesCard shopId={shopId} onSearch={search} />
 
         {error && <p className="text-[12.5px] px-3.5 py-2.5 rounded-lg mb-[18px]" style={{ background: 'var(--fyn-danger-light)', color: '#b91c1c' }}>{error}</p>}
 
