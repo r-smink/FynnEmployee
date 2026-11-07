@@ -2,6 +2,7 @@ import { all } from '@/lib/db'
 import { createAgentFromRecord } from './agent-factory'
 import { BaseAgent } from './base-agent'
 import type { Agent } from './types'
+import { purgeDemoDataIfLive } from '@/lib/demo-data'
 
 class AgentEngine {
   shops: Map<string, Map<string, BaseAgent>> = new Map()
@@ -25,6 +26,8 @@ class AgentEngine {
 
   startShop(shopId: string) {
     if (this.running.get(shopId)) return
+    // Leftovers from demo mode or older versions must not show up as real work after a restart
+    if (this.running.size === 0) purgeDemoDataIfLive()
 
     const agents = this.loadShop(shopId)
     this.running.set(shopId, true)

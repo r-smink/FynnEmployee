@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 import { LayoutDashboard, Building2, Users, Package, ShoppingCart, BarChart3, Settings, Bot, ChevronDown, Plus, Store, Map as MapIcon, TrendingUp } from 'lucide-react'
 import { useAgents } from '@/hooks/use-agents'
 import { SHOPS_CHANGED_EVENT } from '@/components/shops/ShopProfileCard'
+import { useShopStatus } from '@/hooks/use-shop-status'
 
 interface Shop {
   id: string
@@ -17,7 +18,7 @@ const getNavItems = (shopId: string) => [
   { href: `/shops/${shopId}/dashboard`, label: 'Dashboard', icon: LayoutDashboard },
   { href: `/shops/${shopId}/office`, label: 'Kantoor', icon: Building2 },
   { href: `/shops/${shopId}/agents`, label: 'Agents', icon: Users },
-  { href: `/shops/${shopId}/products`, label: 'Producten', icon: Package },
+  { href: `/shops/${shopId}/products`, label: 'Producten', icon: Package, badgeKey: 'review' as const },
   { href: `/shops/${shopId}/orders`, label: 'Bestellingen', icon: ShoppingCart, badgeKey: 'orders' as const },
   { href: `/shops/${shopId}/analytics`, label: 'Analytics', icon: BarChart3 },
   { href: `/shops/${shopId}/trends`, label: 'Markttrends', icon: TrendingUp },
@@ -29,7 +30,7 @@ export function Sidebar({ shopId = 'default' }: { shopId?: string }) {
   const { agents } = useAgents(shopId)
   const [shops, setShops] = useState<Shop[]>([])
   const [showSwitcher, setShowSwitcher] = useState(false)
-  const [newOrders, setNewOrders] = useState(0)
+  const { status } = useShopStatus(shopId)
   const navItems = getNavItems(shopId)
   const currentShop = shops.find(s => s.id === shopId)
 
@@ -37,9 +38,6 @@ export function Sidebar({ shopId = 'default' }: { shopId?: string }) {
     const loadShops = () => fetch('/api/shops').then(r => r.json()).then(setShops).catch(() => {})
     loadShops()
     window.addEventListener(SHOPS_CHANGED_EVENT, loadShops)
-    fetch(`/api/shops/${shopId}/orders`).then(r => r.json()).then((orders: { status: string }[]) => {
-      if (Array.isArray(orders)) setNewOrders(orders.filter(o => o.status === 'new').length)
-    }).catch(() => {})
     return () => window.removeEventListener(SHOPS_CHANGED_EVENT, loadShops)
   }, [shopId])
 
@@ -106,7 +104,8 @@ export function Sidebar({ shopId = 'default' }: { shopId?: string }) {
         <div className="px-2.5 pt-2 pb-1.5 text-[10px] font-bold tracking-[.09em] uppercase" style={{ color: 'var(--text-s)' }}>Werkruimte</div>
         {navItems.map((item) => {
           const active = pathname === item.href || pathname.startsWith(item.href + '/')
-          const badge = item.badgeKey === 'orders' && newOrders > 0 ? newOrders : null
+          const count = item.badgeKey === 'orders' ? status?.newOrders : item.badgeKey === 'review' ? status?.review : 0
+          const badge = count ? count : null
           return (
             <Link
               key={item.href}

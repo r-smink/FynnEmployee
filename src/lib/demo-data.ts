@@ -3,12 +3,16 @@ import { isAiEnabled } from './ai'
 import { isEtsyConnected } from '@/integrations/etsy/client'
 import { isPrintfulConnected } from '@/integrations/printful/client'
 
-// Removes everything agents simulated in demo mode, so AI Live starts from a clean slate.
-// Orders and products are never simulated (they only come in through Etsy), so they stay.
+// Removes everything that is not real, so AI Live starts from a clean slate:
+// - tasks and activity simulated in demo mode
+// - products that are neither on Etsy nor a real design by Luna (older versions marked these "listed" without publishing)
+// - orders that did not come in from Etsy
 export function purgeDemoData(): number {
   return db.transaction(() => {
     const removed = run('DELETE FROM tasks WHERE demo = 1').changes
     run('DELETE FROM activity_log WHERE demo = 1')
+    run("DELETE FROM products WHERE etsy_listing_id IS NULL AND design_url IS NULL AND status != 'rejected'")
+    run('DELETE FROM orders WHERE etsy_order_id IS NULL')
     run(`UPDATE agents SET
       tasks_completed = (SELECT COUNT(*) FROM tasks t WHERE t.agent_id = agents.id AND t.shop_id = agents.shop_id AND t.status = 'completed'),
       current_task_id = CASE WHEN current_task_id IN (SELECT id FROM tasks) THEN current_task_id ELSE NULL END`)
@@ -16,7 +20,7 @@ export function purgeDemoData(): number {
   })()
 }
 
-// Call after any settings change: once AI is really live, demo leftovers are wiped
+// Call after any settings change and at startup: once AI is really live, demo leftovers are wiped
 export function purgeDemoDataIfLive() {
   if (isAiEnabled()) purgeDemoData()
 }

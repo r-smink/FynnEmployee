@@ -1,6 +1,6 @@
 import { v4 as uuid } from 'uuid'
 import { BaseAgent } from './base-agent'
-import { aiChat } from '@/lib/ai'
+import { askAi } from '@/lib/ai'
 import { get, run } from '@/lib/db'
 import {
   generateImage, checkDesign, saveDesign, getImageModel, getDailyDesignLimit, MAX_DESIGNS_IN_REVIEW,
@@ -114,7 +114,7 @@ Keep responses under 200 words. Be creative and market-aware.`
   }
 
   private async writeBrief(task: Task, product: string): Promise<DesignBrief> {
-    const result = await aiChat(
+    const result = await askAi(
       this.getEffectiveSystemPrompt(),
       `Design a print-on-demand ${product} for: ${task.title}. ${task.description}.
 Reply with JSON only:
@@ -125,7 +125,7 @@ Reply with JSON only:
  "price": 24.99}`,
       { model: this.model, maxTokens: 700 }
     )
-    const json = result?.match(/{[sS]*}/)?.[0]
+    const json = result.match(/\{[\s\S]*\}/)?.[0]
     let brief: Partial<DesignBrief> = {}
     try { brief = json ? JSON.parse(json) : {} } catch { /* handled below */ }
     if (!brief.prompt || !brief.title) throw new Error('Tekstmodel gaf geen bruikbare ontwerpbriefing')
