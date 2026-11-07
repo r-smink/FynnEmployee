@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { DEFAULT_MODEL, getModel } from '@/lib/ai'
-import { DEFAULT_IMAGE_MODEL, getImageModel } from '@/lib/images'
+import { DEFAULT_IMAGE_MODEL, getImageModel, loadImageModels, imageModelCache } from '@/lib/images'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,45 +26,11 @@ interface OpenRouterModel {
   architecture?: { input_modalities?: string[]; output_modalities?: string[] }
 }
 
-// Image models come from a separate endpoint; they answer with images, not text
-export interface ImageModelInfo {
-  id: string
-  name: string
-  provider: string
-  created: number
-  // e.g. "svg" for vector models
-  formats: string[]
-}
-
-interface OpenRouterImageModel {
-  id: string
-  name: string
-  created: number
-  supported_parameters?: { output_format?: { values?: string[] } }
-}
+export type { ImageModelInfo } from '@/lib/images'
 
 const CACHE_MS = 60 * 60 * 1000
 const cache = globalThis as unknown as {
   __fynnModels?: { at: number; models: ModelInfo[] }
-  __fynnImageModels?: { at: number; models: ImageModelInfo[] }
-}
-
-async function loadImageModels(): Promise<ImageModelInfo[]> {
-  if (cache.__fynnImageModels && Date.now() - cache.__fynnImageModels.at < CACHE_MS) return cache.__fynnImageModels.models
-  const res = await fetch('https://openrouter.ai/api/v1/images/models', { signal: AbortSignal.timeout(10_000) })
-  if (!res.ok) throw new Error(`OpenRouter ${res.status}`)
-  const { data } = (await res.json()) as { data: OpenRouterImageModel[] }
-  const models = data
-    .map(m => ({
-      id: m.id,
-      name: m.name.replace(/^[^:]+:s*/, ''),
-      provider: m.id.split('/')[0],
-      created: m.created,
-      formats: m.supported_parameters?.output_format?.values ?? [],
-    }))
-    .sort((a, b) => a.provider.localeCompare(b.provider) || b.created - a.created)
-  cache.__fynnImageModels = { at: Date.now(), models }
-  return models
 }
 
 const perMillion = (v?: string) => {
@@ -102,7 +68,7 @@ async function loadModels(): Promise<ModelInfo[]> {
 
 export async function GET() {
   const image = { imageModel: getImageModel(), fallbackImageModel: DEFAULT_IMAGE_MODEL }
-  const imageModels = await loadImageModels().catch(() => cache.__fynnImageModels?.models ?? [])
+  const imageModels = await loadImageModels().catch(() => imageModelCache())
   try {
     const models = await loadModels()
     return NextResponse.json({ models, imageModels, defaultModel: getModel(), fallbackModel: DEFAULT_MODEL, ...image, live: true })
