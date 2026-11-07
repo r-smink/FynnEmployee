@@ -8,6 +8,7 @@ export interface ShopStatus {
   review: number
   newOrders: number
   approved: number
+  publishFailed: number
   onEtsy: number
   last24h: { done: number; failed: number; designs: number }
   lastError: { message: string; agent: string | null; created_at: string } | null

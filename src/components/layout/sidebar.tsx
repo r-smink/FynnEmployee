@@ -104,7 +104,7 @@ export function Sidebar({ shopId = 'default' }: { shopId?: string }) {
         <div className="px-2.5 pt-2 pb-1.5 text-[10px] font-bold tracking-[.09em] uppercase" style={{ color: 'var(--text-s)' }}>Werkruimte</div>
         {navItems.map((item) => {
           const active = pathname === item.href || pathname.startsWith(item.href + '/')
-          const count = item.badgeKey === 'orders' ? status?.newOrders : item.badgeKey === 'review' ? status?.review : 0
+          const count = item.badgeKey === 'orders' ? status?.newOrders : item.badgeKey === 'review' && status ? status.review + status.publishFailed : 0
           const badge = count ? count : null
           return (
             <Link

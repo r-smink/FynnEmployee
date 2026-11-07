@@ -11,6 +11,9 @@ function safeEqual(a: string, b: string): boolean {
 }
 
 export function proxy(request: NextRequest) {
+  // Files Printful downloads; that route checks a signature in every link itself
+  if (request.nextUrl.pathname.startsWith('/api/public/')) return NextResponse.next()
+
   const password = process.env.APP_PASSWORD
   if (!password) {
     if (process.env.NODE_ENV !== 'production') return NextResponse.next()

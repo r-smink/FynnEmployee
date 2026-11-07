@@ -28,10 +28,17 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ sho
     review: count("SELECT COUNT(*) AS n FROM products WHERE shop_id = ? AND status = 'review'", shopId),
     newOrders: count("SELECT COUNT(*) AS n FROM orders WHERE shop_id = ? AND status = 'new'", shopId),
     approved: count(
-      "SELECT COUNT(*) AS n FROM products WHERE shop_id = ? AND status = 'draft' AND design_url IS NOT NULL AND etsy_listing_id IS NULL",
+      `SELECT COUNT(*) AS n FROM products WHERE shop_id = ? AND status = 'draft' AND design_url IS NOT NULL
+       AND COALESCE(publish_status, '') NOT IN ('etsy_draft', 'etsy_live')`,
       shopId
     ),
-    onEtsy: count("SELECT COUNT(*) AS n FROM products WHERE shop_id = ? AND etsy_listing_id IS NOT NULL", shopId),
+    publishFailed: count("SELECT COUNT(*) AS n FROM products WHERE shop_id = ? AND publish_status = 'failed'", shopId),
+    // Listings this app made, plus products synced from Etsy before (those have no publish status)
+    onEtsy: count(
+      `SELECT COUNT(*) AS n FROM products WHERE shop_id = ?
+       AND (publish_status IN ('etsy_draft', 'etsy_live') OR (publish_status IS NULL AND etsy_listing_id IS NOT NULL))`,
+      shopId
+    ),
     last24h: {
       done: count(`SELECT COUNT(*) AS n FROM tasks WHERE shop_id = ? AND demo = 0 AND status = 'completed' AND completed_at >= ${day}`, shopId),
       failed: count(`SELECT COUNT(*) AS n FROM tasks WHERE shop_id = ? AND demo = 0 AND status = 'failed' AND completed_at >= ${day}`, shopId),

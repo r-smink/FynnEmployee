@@ -43,7 +43,7 @@ export function StatusOverview({ shopId }: { shopId: string }) {
   const { status } = useShopStatus(shopId)
   if (!status?.live) return null
 
-  const waiting = status.review + status.newOrders
+  const waiting = status.review + status.newOrders + status.publishFailed
   const { done, failed, designs } = status.last24h
 
   return (
@@ -65,6 +65,7 @@ export function StatusOverview({ shopId }: { shopId: string }) {
           ) : (
             <>
               {status.review > 0 && <Row href={`/shops/${shopId}/products`} label="Ontwerpen beoordelen" value={status.review} accent="#d97706" />}
+              {status.publishFailed > 0 && <Row href={`/shops/${shopId}/products`} label="Niet gelukt naar Etsy" value={status.publishFailed} accent="#dc2626" />}
               {status.newOrders > 0 && <Row href={`/shops/${shopId}/orders`} label="Nieuwe bestellingen" value={status.newOrders} accent="#d97706" />}
             </>
           )}
@@ -81,10 +82,10 @@ export function StatusOverview({ shopId }: { shopId: string }) {
 
         <Panel icon={Store} color="var(--fyn-purple)" title="Producten">
           <Row href={`/shops/${shopId}/products`} label="Te beoordelen" value={status.review} />
-          <Row href={`/shops/${shopId}/products`} label="Goedgekeurd, nog niet op Etsy" value={status.approved} />
+          <Row href={`/shops/${shopId}/products`} label="Goedgekeurd, onderweg naar Etsy" value={status.approved} />
           <Row label="Op Etsy" value={status.onEtsy} accent={status.onEtsy ? '#10b981' : undefined} />
           <div className="text-[11.5px] mt-1.5" style={{ color: 'var(--text-s)' }}>
-            Automatisch op Etsy zetten is nog niet gebouwd. Goedgekeurde ontwerpen blijven concept.
+            Goedgekeurde ontwerpen gaan automatisch naar Printful en Etsy. Lukt dat niet, dan zie je bij Producten waarom.
           </div>
         </Panel>
       </div>

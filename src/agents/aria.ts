@@ -89,28 +89,17 @@ Keep responses under 150 words. Be precise and action-oriented.`
       this.updateProgress(task.id, 40, 'Processing orders via Printful...')
 
       const pendingOrders = all<DbOrder>(
-        "SELECT * FROM orders WHERE shop_id = ? AND status = 'new' AND fulfillment_id IS NULL LIMIT 5",
+        "SELECT * FROM orders WHERE shop_id = ? AND status = 'new' AND fulfillment_id IS NULL",
         this.shopId
       )
 
       if (pendingOrders.length > 0) {
-        this.log(`Submitting ${pendingOrders.length} orders to Printful...`, 'info', task.id)
-
-        for (const order of pendingOrders) {
-          try {
-            this.log(`Processing order ${order.id.substring(0, 8)}... for ${order.customer_name}`, 'info', task.id)
-
-            // Note: In production, you'd look up the correct variant_id and design_url
-            // from the product linked to this order. For now we log what would happen.
-            run(
-              `UPDATE orders SET status = 'processing', fulfillment_status = 'submitted', updated_at = datetime('now') WHERE id = ? AND shop_id = ?`,
-              order.id, this.shopId
-            )
-            this.log(`Order ${order.id.substring(0, 8)} marked for fulfillment`, 'success', task.id)
-          } catch (err) {
-            this.log(`Failed to process order ${order.id.substring(0, 8)}: ${err}`, 'error', task.id)
-          }
-        }
+        // Sending orders to Printful (which costs money) isn't built yet; orders stay 'new'
+        // so they keep showing as waiting instead of looking handled
+        this.log(
+          `${pendingOrders.length} order(s) wachten. Automatisch naar Printful sturen is nog niet gebouwd: maak ze zelf aan in Printful.`,
+          'warning', task.id
+        )
       } else {
         this.log('No pending orders to fulfill', 'info', task.id)
       }

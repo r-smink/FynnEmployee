@@ -10,12 +10,15 @@ async function printfulFetch<T = unknown>(
 ): Promise<T> {
   const token = getSetting('printful_api_key')
   if (!token) throw new Error('Printful API key not configured')
+  // Account-wide tokens need to know which store; harmless for store tokens
+  const storeId = getSetting('printful_store_id')
 
   const response = await fetch(`${PRINTFUL_API_BASE}${endpoint}`, {
     ...options,
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
+      ...(storeId ? { 'X-PF-Store-Id': storeId } : {}),
       ...options.headers,
     },
   })
@@ -141,22 +144,42 @@ export async function getSyncProduct(productId: number): Promise<{
 
 // ─── Mockup Generator ─────────────────────────────────────
 
-export async function createMockupTask(params: {
+// Print areas per product: pixel size of each print file and which one every variant uses
+export async function getPrintfiles(productId: number): Promise<PrintfulPrintfiles> {
+  return printfulFetch(`/mockup-generator/printfiles/${productId}`)
+}
+
+export async function createMockupTask(productId: number, params: {
   variant_ids: number[]
-  files: { placement: string; image_url: string }[]
-}): Promise<{ task_key: string }> {
-  // Get product_id from first variant
-  return printfulFetch('/mockup-generator/create-task', {
+  format?: 'jpg' | 'png'
+  files: { placement: string; image_url: string; position?: PrintPosition }[]
+}): Promise<{ task_key: string; status: string }> {
+  return printfulFetch(`/mockup-generator/create-task/${productId}`, {
     method: 'POST',
     body: JSON.stringify(params),
   })
 }
 
 export async function getMockupTask(taskKey: string): Promise<{
-  status: string
-  mockups?: { placement: string; variant_ids: number[]; mockup_url: string }[]
+  status: string  // pending, completed, failed
+  error?: string
+  mockups?: { placement: string; variant_ids: number[]; mockup_url: string; extra?: { title: string; url: string }[] }[]
 }> {
   return printfulFetch(`/mockup-generator/task?task_key=${taskKey}`)
+}
+
+// ─── File Library ─────────────────────────────────────────
+
+// Printful downloads the file once and keeps it, so orders don't depend on this app being reachable
+export async function addFile(params: { url: string; filename: string }): Promise<PrintfulFile> {
+  return printfulFetch('/files', {
+    method: 'POST',
+    body: JSON.stringify({ ...params, visible: true }),
+  })
+}
+
+export async function getFile(fileId: number): Promise<PrintfulFile> {
+  return printfulFetch(`/files/${fileId}`)
 }
 
 // ─── Webhooks ─────────────────────────────────────────────
@@ -354,6 +377,30 @@ export interface PrintfulSyncVariant {
   currency: string
   sku: string
   product: { variant_id: number; product_id: number; image: string; name: string }
+}
+
+export interface PrintPosition {
+  area_width: number
+  area_height: number
+  width: number
+  height: number
+  top: number
+  left: number
+}
+
+export interface PrintfulPrintfiles {
+  product_id: number
+  available_placements: Record<string, string>
+  printfiles: { printfile_id: number; width: number; height: number; dpi: number; fill_mode: string }[]
+  variant_printfiles: { variant_id: number; placements: Record<string, number> }[]
+}
+
+export interface PrintfulFile {
+  id: number
+  url: string | null
+  filename: string
+  status: string  // waiting, ok, failed
+  preview_url: string | null
 }
 
 export interface PrintfulWebhook {

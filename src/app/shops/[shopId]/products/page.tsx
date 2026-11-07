@@ -1,7 +1,7 @@
 'use client'
 
 import { use, useState, useEffect, useCallback } from 'react'
-import { Search, TrendingUp, Package, Shirt, ShoppingBag, Coffee, Smartphone, Image as ImageIcon, Sparkles, Home } from 'lucide-react'
+import { Search, TrendingUp, Package, Shirt, ShoppingBag, Coffee, Smartphone, Image as ImageIcon, Sparkles, Home, Loader2, ExternalLink, AlertTriangle, RotateCw } from 'lucide-react'
 import { Topbar } from '@/components/layout/topbar'
 import { PageBody } from '@/components/layout/app-shell'
 import { euro } from '@/lib/labels'
@@ -21,6 +21,10 @@ interface Product {
   tags: string
   design_url?: string | null
   created_at: string
+  etsy_listing_id?: string | null
+  publish_status?: string | null
+  publish_step?: string | null
+  publish_error?: string | null
 }
 
 const DEMO_PRODUCTS: Product[] = [
@@ -59,6 +63,61 @@ function categoryIcon(category: string) {
   return Package
 }
 
+// Where an approved design is on its way to Etsy (see lib/publish.ts)
+function PublishState({ shopId, product, onChange }: { shopId: string; product: Product; onChange: () => void }) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const { publish_status: status, etsy_listing_id: listingId } = product
+  if (!status) return null
+
+  const retry = async () => {
+    setBusy(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/shops/${shopId}/products/${product.id}/publish`, { method: 'POST' })
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Opnieuw proberen mislukt')
+      onChange()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Opnieuw proberen mislukt')
+    }
+    setBusy(false)
+  }
+
+  const link = (href: string, label: string) => (
+    <a href={href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-semibold" style={{ color: 'var(--fyn-blue)' }}>
+      {label} <ExternalLink className="w-3 h-3" />
+    </a>
+  )
+
+  return (
+    <div className="text-[11.5px] leading-[1.45] mb-3 px-2.5 py-2 rounded-lg" style={{ background: 'var(--well)', border: '1px solid var(--well-border)', color: 'var(--text-m)' }}>
+      {status === 'publishing' && (
+        <span className="inline-flex items-center gap-1.5">
+          <Loader2 className="w-3.5 h-3.5 animate-spin" style={{ color: 'var(--fyn-purple)' }} />
+          Naar Etsy: {product.publish_step || 'starten'}…
+        </span>
+      )}
+      {status === 'etsy_draft' && listingId && (
+        <span>Concept op Etsy. {link(`https://www.etsy.com/your/shops/me/listing-editor/edit/${listingId}`, 'Bekijken en publiceren')}</span>
+      )}
+      {status === 'etsy_live' && listingId && (
+        <span style={{ color: '#059669' }}>Live op Etsy. {link(`https://www.etsy.com/listing/${listingId}`, 'Bekijk listing')}</span>
+      )}
+      {status === 'failed' && (
+        <>
+          <span className="flex items-start gap-1.5" style={{ color: '#b91c1c' }}>
+            <AlertTriangle className="w-3.5 h-3.5 mt-px shrink-0" /> {product.publish_error || 'Op Etsy zetten mislukt'}
+          </span>
+          {error && <span className="block mt-1" style={{ color: '#b91c1c' }}>{error}</span>}
+          <button className="fynn-btn-ghost mt-2" style={{ height: 30, fontSize: 12 }} disabled={busy} onClick={retry}>
+            {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCw className="w-3.5 h-3.5" />} Opnieuw proberen
+          </button>
+        </>
+      )}
+    </div>
+  )
+}
+
 function parseTags(raw: string): string[] {
   try { return JSON.parse(raw || '[]') } catch { return [] }
 }
@@ -77,8 +136,8 @@ export default function ProductsPage({ params }: { params: Promise<{ shopId: str
 
   useEffect(() => {
     load()
-    // Luna adds designs while the page is open
-    const interval = setInterval(load, 15000)
+    // Luna adds designs and approved ones move to Etsy while the page is open
+    const interval = setInterval(load, 5000)
     window.addEventListener(SETTINGS_CHANGED_EVENT, load)
     return () => {
       clearInterval(interval)
@@ -150,6 +209,7 @@ export default function ProductsPage({ params }: { params: Promise<{ shopId: str
                   <div className="p-4">
                     <div className="text-sm font-bold leading-[1.3] mb-1.5" style={{ color: 'var(--text-h)' }}>{p.title}</div>
                     <div className="text-xs leading-[1.45] mb-3 min-h-[34px] line-clamp-2" style={{ color: 'var(--text-m)' }}>{p.description}</div>
+                    {!demo && <PublishState shopId={shopId} product={p} onChange={load} />}
                     <div className="flex flex-wrap gap-1.5 mb-3.5">
                       {parseTags(p.tags).slice(0, 3).map(t => (
                         <span key={t} className="px-[9px] py-[3px] rounded-full text-[11px] font-semibold"
