@@ -179,8 +179,11 @@ export abstract class BaseAgent {
     this.log('Consulting AI for best approach...', 'thinking', task.id)
     this.updateProgress(task.id, 30, 'Consulting AI...')
 
+    const context = await this.getTaskContext(task)
+    const prompt = context ? `${this.getTaskPrompt(task)}\n\n${context}` : this.getTaskPrompt(task)
+
     // Throws when the AI fails, so the task is marked failed instead of faking work
-    const result = await askAi(this.getEffectiveSystemPrompt(), this.getTaskPrompt(task), { model: this.model })
+    const result = await askAi(this.getEffectiveSystemPrompt(), prompt, { model: this.model })
 
     this.updateProgress(task.id, 60, 'Processing AI response...')
     this.log('AI response received, processing...', 'info', task.id)
@@ -194,6 +197,11 @@ export abstract class BaseAgent {
     this.log(`AI result: ${preview}`, 'info', task.id)
     this.updateProgress(task.id, 85, 'Finalizing...')
     await new Promise(r => setTimeout(r, 500))
+  }
+
+  // Extra facts for the AI prompt (market data, themes); live mode only
+  protected async getTaskContext(_task: Task): Promise<string | null> {
+    return null
   }
 
   async simulateWork(taskId: string, steps: SimulationStep[]): Promise<void> {

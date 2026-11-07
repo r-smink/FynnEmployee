@@ -1,5 +1,12 @@
 import { BaseAgent } from './base-agent'
+import { activeThemes } from '@/lib/theme-store'
+import { isSeasonal, formatMonthDay } from '@/lib/themes'
+import { getShopSetting } from '@/lib/shop-settings'
+import { marketSummary, NO_MARKET_DATA } from '@/lib/market-context'
 import type { AgentConfig, Task, SimulationStep, TaskType } from './types'
+
+// Market searches per trend task: each costs a few Etsy API calls (cached for 30 minutes)
+const MAX_MARKET_QUERIES = 3
 
 export class NovaAgent extends BaseAgent {
   constructor(config: AgentConfig) {
@@ -25,6 +32,24 @@ Keep responses under 200 words. Be data-driven and specific with numbers.`
       return `Analyze trending product categories on Etsy right now. Which niches are growing? What seasonal opportunities are coming up? Suggest 3 design directions we should pursue.`
     }
     return `Conduct a competitor pricing analysis for print-on-demand products on Etsy. Compare our pricing strategy, identify gaps, and suggest pricing adjustments for maximum margin.`
+  }
+
+  // Trend and pricing analyses get the shop's themes and real Etsy figures instead of guesses
+  protected async getTaskContext(task: Task): Promise<string | null> {
+    if (task.type !== 'analytics_trend' && task.type !== 'analytics_competitor') return null
+    const themes = activeThemes(this.shopId)
+    const seasonal = themes.filter(isSeasonal)
+    let saved: string[] = []
+    try { saved = JSON.parse(getShopSetting(this.shopId, 'trend_keywords') || '[]') } catch { /* none saved */ }
+
+    const queries = [...new Set([...seasonal.map(t => t.search), ...saved, ...themes.map(t => t.search)])].slice(0, MAX_MARKET_QUERIES)
+    const data = (await Promise.all(queries.map(marketSummary))).filter((d): d is string => !!d)
+    return [
+      seasonal.length
+        ? `Seasonal themes running now: ${seasonal.map(t => `${t.name} (${formatMonthDay(t.start!)} – ${formatMonthDay(t.end!)})`).join(', ')}`
+        : 'No seasonal theme is running now.',
+      data.length ? data.join('\n\n') : NO_MARKET_DATA,
+    ].join('\n\n')
   }
 
   generateTask(): { type: TaskType; title: string; description: string } {
