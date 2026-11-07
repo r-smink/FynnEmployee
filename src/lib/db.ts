@@ -82,6 +82,13 @@ function migrate(database: Database.Database) {
   addColumn(database, 'tasks', 'demo', 'INTEGER DEFAULT 0', 'UPDATE tasks SET demo = 1 WHERE output_data IS NULL')
   addColumn(database, 'activity_log', 'demo', 'INTEGER DEFAULT 0',
     'UPDATE activity_log SET demo = 1 WHERE task_id IS NULL OR task_id IN (SELECT id FROM tasks WHERE demo = 1)')
+
+  // Getting an approved design onto Printful and Etsy: status (publishing, listed, failed), the step
+  // it is on, the last error, and what is done so far as JSON, so a retry continues where it stopped
+  addColumn(database, 'products', 'publish_status', 'TEXT')
+  addColumn(database, 'products', 'publish_step', 'TEXT')
+  addColumn(database, 'products', 'publish_error', 'TEXT')
+  addColumn(database, 'products', 'fulfillment', 'TEXT')
 }
 migrate(db)
 

@@ -9,6 +9,7 @@ const ALLOWED_KEYS = [
   'openrouter_model',
   'openrouter_image_model',
   'luna_daily_designs',
+  'etsy_publish_live',
   'etsy_api_key',
   'etsy_api_secret',
   'printful_api_key',

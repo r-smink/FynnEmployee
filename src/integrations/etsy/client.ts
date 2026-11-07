@@ -170,7 +170,8 @@ export async function etsyFetch<T = unknown>(
     headers: {
       'x-api-key': apiKey,
       'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
+      // Form and multipart bodies set their own content type
+      ...(typeof options.body === 'string' ? { 'Content-Type': 'application/json' } : {}),
       ...options.headers,
     },
   })
@@ -231,6 +232,86 @@ export async function updateListing(listingId: number, data: Partial<CreateListi
 
 export async function getListing(listingId: number): Promise<EtsyListing> {
   return etsyFetch(`/application/listings/${listingId}`)
+}
+
+// Etsy wants listing fields form-encoded; arrays go as comma-separated lists
+function form(data: Record<string, string | number | boolean | (string | number)[] | undefined | null>): URLSearchParams {
+  const body = new URLSearchParams()
+  for (const [key, value] of Object.entries(data)) {
+    if (value === undefined || value === null) continue
+    if (Array.isArray(value)) {
+      if (value.length > 0) body.set(key, value.join(','))
+    } else {
+      body.set(key, String(value))
+    }
+  }
+  return body
+}
+
+export async function createDraftListing(data: DraftListingData): Promise<EtsyListing> {
+  return etsyFetch(`/application/shops/${getShopId()}/listings`, {
+    method: 'POST',
+    body: form({ ...data }),
+  })
+}
+
+export async function setListingState(listingId: number, state: 'active' | 'inactive'): Promise<EtsyListing> {
+  return etsyFetch(`/application/shops/${getShopId()}/listings/${listingId}`, {
+    method: 'PATCH',
+    body: form({ state }),
+  })
+}
+
+export async function uploadListingImage(listingId: number, image: Blob, filename: string, rank: number, altText?: string) {
+  const body = new FormData()
+  body.set('image', image, filename)
+  body.set('rank', String(rank))
+  if (altText) body.set('alt_text', altText.slice(0, 500))
+  return etsyFetch<{ listing_image_id: number }>(`/application/shops/${getShopId()}/listings/${listingId}/images`, {
+    method: 'POST',
+    body,
+  })
+}
+
+export async function updateListingInventory(listingId: number, inventory: ListingInventory) {
+  return etsyFetch(`/application/listings/${listingId}/inventory`, {
+    method: 'PUT',
+    body: JSON.stringify(inventory),
+  })
+}
+
+// ─── Shop setup needed for physical listings ──────────────
+
+export async function getTaxonomyNodes(): Promise<TaxonomyNode[]> {
+  const data = await etsyFetch<{ results: TaxonomyNode[] }>('/application/seller-taxonomy/nodes')
+  return data.results
+}
+
+export async function getShippingProfiles(): Promise<{ shipping_profile_id: number; title: string; is_deleted?: boolean }[]> {
+  const data = await etsyFetch<{ results: { shipping_profile_id: number; title: string; is_deleted?: boolean }[] }>(
+    `/application/shops/${getShopId()}/shipping-profiles`
+  )
+  return data.results.filter(p => !p.is_deleted)
+}
+
+// Etsy calls processing profiles "readiness states"
+export async function getReadinessStates(): Promise<ReadinessState[]> {
+  const data = await etsyFetch<{ results: ReadinessState[] }>(`/application/shops/${getShopId()}/readiness-state-definitions`)
+  return data.results
+}
+
+export async function createReadinessState(minDays: number, maxDays: number): Promise<ReadinessState> {
+  return etsyFetch(`/application/shops/${getShopId()}/readiness-state-definitions`, {
+    method: 'POST',
+    body: form({ readiness_state: 'made_to_order', min_processing_time: minDays, max_processing_time: maxDays, processing_time_unit: 'days' }),
+  })
+}
+
+export async function getProductionPartners(): Promise<{ production_partner_id: number; partner_name: string }[]> {
+  const data = await etsyFetch<{ results: { production_partner_id: number; partner_name: string }[] }>(
+    `/application/shops/${getShopId()}/production-partners`
+  )
+  return data.results
 }
 
 // ─── Orders / Receipts ────────────────────────────────────
@@ -313,6 +394,50 @@ export interface CreateListingData {
   shipping_profile_id: number
   tags?: string[]
   type?: 'physical' | 'digital' | 'both'
+}
+
+export interface DraftListingData {
+  title: string
+  description: string
+  price: number
+  quantity: number
+  taxonomy_id: number
+  who_made: 'i_did' | 'someone_else' | 'collective'
+  when_made: string
+  is_supply: boolean
+  type: 'physical'
+  shipping_profile_id: number
+  readiness_state_id: number
+  tags?: string[]
+  production_partner_ids?: number[]
+}
+
+export interface ListingInventory {
+  products: {
+    sku: string
+    property_values: { property_id: number; property_name: string; value_ids: number[]; values: string[] }[]
+    offerings: { price: number; quantity: number; is_enabled: boolean; readiness_state_id: number }[]
+  }[]
+  price_on_property?: number[]
+  quantity_on_property?: number[]
+  sku_on_property?: number[]
+  readiness_state_on_property?: number[]
+}
+
+export interface TaxonomyNode {
+  id: number
+  level: number
+  name: string
+  parent_id: number | null
+  children: TaxonomyNode[]
+  full_path_taxonomy_ids: number[]
+}
+
+export interface ReadinessState {
+  readiness_state_id: number
+  readiness_state: string  // ready_to_ship, made_to_order
+  min_processing_days: number
+  max_processing_days: number
 }
 
 export interface EtsyReceipt {

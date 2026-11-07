@@ -8,6 +8,7 @@ import {
 import { pickTheme, findTheme, activeThemes } from '@/lib/theme-store'
 import { isSeasonal, formatMonthDay, type DesignTheme } from '@/lib/themes'
 import { marketSummary, NO_MARKET_DATA } from '@/lib/market-context'
+import { PRODUCT_TYPES } from '@/lib/product-specs'
 import type { AgentConfig, Task, SimulationStep, TaskType } from './types'
 
 interface DesignBrief {
@@ -20,8 +21,6 @@ interface DesignBrief {
 
 // Used when every theme is switched off or out of season
 const FALLBACK_THEME = 'Trending'
-
-const PRODUCT_TYPES = ['T-Shirt', 'Tote Bag', 'Mug', 'Phone Case', 'Poster', 'Sticker Set', 'Pillow Cover', 'Hoodie']
 
 export class LunaAgent extends BaseAgent {
   constructor(config: AgentConfig) {
@@ -147,7 +146,7 @@ Reply with JSON only:
 {"title": "Etsy product title, max 80 chars",
  "concept": "1-2 sentence description for the listing",
  "prompt": "detailed image prompt in English: subject, style, composition, 3-5 named colors. No text in the artwork.",
- "tags": ["up to 13 Etsy tags"],
+ "tags": ["up to 13 Etsy tags, each at most 20 characters"],
  "price": 24.99}`,
       { model: this.model, maxTokens: 700 }
     )
