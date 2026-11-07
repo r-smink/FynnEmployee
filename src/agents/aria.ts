@@ -1,5 +1,5 @@
 import { BaseAgent } from './base-agent'
-import { aiChat } from '@/lib/ai'
+import { askAi } from '@/lib/ai'
 import { run, all, get } from '@/lib/db'
 import { isEtsyConnected, getReceipts } from '@/integrations/etsy/client'
 import { isPrintfulConnected, createOrder, confirmOrder, getOrder, buildOrderFromEtsy } from '@/integrations/printful/client'
@@ -172,12 +172,10 @@ Keep responses under 150 words. Be precise and action-oriented.`
 
     // ── Step 4: AI summary/confirmation ───────────────────
     this.updateProgress(task.id, 80, 'Generating summary...')
-    const result = await aiChat(this.getEffectiveSystemPrompt(), this.getTaskPrompt(task), { model: this.model })
-    if (result) {
-      run('UPDATE tasks SET output_data = ? WHERE id = ?', JSON.stringify({ aiResponse: result }), task.id)
-      const preview = result.length > 120 ? result.substring(0, 120) + '...' : result
-      this.log(`AI: ${preview}`, 'info', task.id)
-    }
+    const result = await askAi(this.getEffectiveSystemPrompt(), this.getTaskPrompt(task), { model: this.model })
+    run('UPDATE tasks SET output_data = ? WHERE id = ?', JSON.stringify({ aiResponse: result }), task.id)
+    const preview = result.length > 120 ? result.substring(0, 120) + '...' : result
+    this.log(`AI: ${preview}`, 'info', task.id)
 
     this.updateProgress(task.id, 95, 'Finalizing...')
     await new Promise(r => setTimeout(r, 500))

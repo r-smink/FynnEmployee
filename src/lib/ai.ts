@@ -69,6 +69,32 @@ export function isAiEnabled(): boolean {
   return hasAiKey() && getAiMode() === 'live'
 }
 
+// Like aiChat, but a failure throws with the reason, so a live task fails visibly instead of pretending to work
+export async function askAi(
+  systemPrompt: string,
+  userPrompt: string,
+  options?: { maxTokens?: number; model?: string }
+): Promise<string> {
+  const client = getAiClient()
+  if (!client) throw new Error('Geen OpenRouter API-key ingesteld')
+  let content: string | null | undefined
+  try {
+    const response = await client.chat.completions.create({
+      model: options?.model || getModel(),
+      max_tokens: options?.maxTokens ?? 500,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+    })
+    content = response.choices[0]?.message?.content
+  } catch (err) {
+    throw new Error(`AI-model gaf een fout: ${err instanceof Error ? err.message : String(err)}`)
+  }
+  if (!content?.trim()) throw new Error('AI-model gaf een leeg antwoord')
+  return content
+}
+
 export async function aiChat(
   systemPrompt: string,
   userPrompt: string,

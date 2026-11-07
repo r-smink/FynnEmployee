@@ -8,6 +8,7 @@ import { PageBody } from '@/components/layout/app-shell'
 import { MetricsBar } from '@/components/dashboard/metrics-bar'
 import { AgentGrid } from '@/components/dashboard/agent-grid'
 import { ActivityFeed } from '@/components/dashboard/activity-feed'
+import { StatusOverview } from '@/components/dashboard/status-overview'
 import { SlideOverPanel } from '@/components/panels/SlideOverPanel'
 import { AgentPanel } from '@/components/panels/AgentPanel'
 import { useAgents } from '@/hooks/use-agents'
@@ -24,6 +25,7 @@ export default function DashboardPage({ params }: { params: Promise<{ shopId: st
     <>
       <Topbar title="Commandocentrum" subtitle="Monitor je AI-personeel in realtime" connected={connected} />
       <PageBody>
+        <StatusOverview shopId={shopId} />
         <MetricsBar shopId={shopId} agents={agents} />
 
         <div className="flex items-center justify-between mb-3.5">

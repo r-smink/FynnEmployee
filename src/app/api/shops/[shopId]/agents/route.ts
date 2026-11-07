@@ -17,7 +17,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ sho
       currentTask = get('SELECT * FROM tasks WHERE id = ?', agent.current_task_id) || null
     }
     const recentActivity = all(
-      'SELECT * FROM activity_log WHERE agent_id = ? AND shop_id = ? ORDER BY created_at DESC LIMIT 5',
+      'SELECT * FROM activity_log WHERE agent_id = ? AND shop_id = ? ORDER BY id DESC LIMIT 5',
       agent.id, shopId
     )
     return { ...agent, currentTask, recentActivity }

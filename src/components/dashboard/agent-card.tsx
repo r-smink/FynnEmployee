@@ -3,6 +3,9 @@
 import type { AgentData } from '@/hooks/use-agents'
 import { AGENT_STATUS, agentRole, alpha } from '@/lib/labels'
 import { AgentToggle } from '@/components/agents/AgentToggle'
+import { formatDistanceToNow } from 'date-fns'
+import { nl } from 'date-fns/locale'
+import { parseDbDate } from '@/lib/revenue'
 
 export function AgentAvatar({ agent, size = 46 }: { agent: Pick<AgentData, 'name' | 'color'>; size?: number }) {
   return (
@@ -71,8 +74,16 @@ export function AgentCard({ agent, onClick }: { agent: AgentData; onClick?: () =
           <div className="text-[11.5px] mt-1.5" style={{ color: 'var(--text-m)' }}>{agent.currentTask.progress}% voltooid</div>
         </div>
       ) : (
-        <div className="text-[12.5px] mb-3.5 truncate" style={{ color: 'var(--text-m)' }}>
-          {lastActivity ? `Laatst: ${lastActivity.message}` : 'Nog geen activiteit'}
+        <div className="mb-3.5 min-w-0">
+          <div className="text-[12.5px] truncate" title={lastActivity?.message}
+            style={{ color: lastActivity?.type === 'error' ? '#dc2626' : 'var(--text-m)' }}>
+            {lastActivity ? lastActivity.message : 'Nog geen activiteit'}
+          </div>
+          {lastActivity && (
+            <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-s)' }}>
+              {formatDistanceToNow(parseDbDate(lastActivity.created_at), { addSuffix: true, locale: nl })}
+            </div>
+          )}
         </div>
       )}
 

@@ -130,7 +130,7 @@ export default function ProductsPage({ params }: { params: Promise<{ shopId: str
         {visible.length === 0 ? (
           <div className="fynn-card py-16 text-center text-[13px]" style={{ color: 'var(--text-m)' }}>
             {products.length === 0
-              ? 'Nog geen producten. Zodra Marcus listings op Etsy zet, verschijnen ze hier.'
+              ? 'Nog geen producten. Ontwerpen van Luna die je goedkeurt verschijnen hier.'
               : 'Geen producten gevonden'}
           </div>
         ) : (

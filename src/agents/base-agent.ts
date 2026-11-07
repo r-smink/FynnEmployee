@@ -2,7 +2,7 @@ import { v4 as uuid } from 'uuid'
 import { run, get } from '@/lib/db'
 import { getShopSetting, SHOP_PROMPT_KEY } from '@/lib/shop-settings'
 import { emitAgentEvent } from '@/lib/events'
-import { isAiEnabled, aiChat } from '@/lib/ai'
+import { isAiEnabled, askAi } from '@/lib/ai'
 import type { AgentConfig, AgentStatus, Task, SimulationStep, TaskType } from './types'
 
 export abstract class BaseAgent {
@@ -150,9 +150,9 @@ export abstract class BaseAgent {
         timestamp: new Date().toISOString(),
       })
     } catch (err) {
-      run('UPDATE tasks SET status = \'failed\' WHERE id = ?', task.id)
+      run('UPDATE tasks SET status = \'failed\', completed_at = datetime(\'now\') WHERE id = ?', task.id)
       run('UPDATE agents SET current_task_id = NULL WHERE id = ? AND shop_id = ?', this.id, this.shopId)
-      this.log(`Failed: ${task.title} - ${err}`, 'error', task.id)
+      this.log(`Mislukt: ${task.title} - ${err instanceof Error ? err.message : err}`, 'error', task.id)
       emitAgentEvent({
         shopId: this.shopId,
         agentId: this.id,
@@ -179,27 +179,21 @@ export abstract class BaseAgent {
     this.log('Consulting AI for best approach...', 'thinking', task.id)
     this.updateProgress(task.id, 30, 'Consulting AI...')
 
-    const result = await aiChat(this.getEffectiveSystemPrompt(), this.getTaskPrompt(task), { model: this.model })
+    // Throws when the AI fails, so the task is marked failed instead of faking work
+    const result = await askAi(this.getEffectiveSystemPrompt(), this.getTaskPrompt(task), { model: this.model })
 
-    if (result) {
-      this.updateProgress(task.id, 60, 'Processing AI response...')
-      this.log('AI response received, processing...', 'info', task.id)
-      await new Promise(r => setTimeout(r, 800))
+    this.updateProgress(task.id, 60, 'Processing AI response...')
+    this.log('AI response received, processing...', 'info', task.id)
+    await new Promise(r => setTimeout(r, 800))
 
-      // Store AI output in task
-      run('UPDATE tasks SET output_data = ? WHERE id = ?', JSON.stringify({ aiResponse: result }), task.id)
+    // Store AI output in task
+    run('UPDATE tasks SET output_data = ? WHERE id = ?', JSON.stringify({ aiResponse: result }), task.id)
 
-      // Log a preview of the result
-      const preview = result.length > 120 ? result.substring(0, 120) + '...' : result
-      this.log(`AI result: ${preview}`, 'info', task.id)
-      this.updateProgress(task.id, 85, 'Finalizing...')
-      await new Promise(r => setTimeout(r, 500))
-    } else {
-      // AI failed, fall back to simulation
-      this.log('AI unavailable, running simulation...', 'warning', task.id)
-      const steps = this.getSimulationSteps(task)
-      await this.simulateWork(task.id, steps)
-    }
+    // Log a preview of the result
+    const preview = result.length > 120 ? result.substring(0, 120) + '...' : result
+    this.log(`AI result: ${preview}`, 'info', task.id)
+    this.updateProgress(task.id, 85, 'Finalizing...')
+    await new Promise(r => setTimeout(r, 500))
   }
 
   async simulateWork(taskId: string, steps: SimulationStep[]): Promise<void> {

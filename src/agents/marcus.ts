@@ -1,9 +1,7 @@
 import { BaseAgent } from './base-agent'
-import { aiChat } from '@/lib/ai'
+import { askAi } from '@/lib/ai'
 import { run } from '@/lib/db'
-import { isEtsyConnected } from '@/integrations/etsy/client'
 import type { AgentConfig, Task, SimulationStep, TaskType } from './types'
-import { v4 as uuid } from 'uuid'
 
 const LISTING_ACTIONS = [
   'Beach Vibes Collection', 'Autumn Harvest Set', 'Minimalist Line', 'Boho Dreams',
@@ -37,9 +35,9 @@ Keep responses under 250 words. Focus on search visibility and conversion.`
     return `Suggest photo/mockup improvements for: ${task.title}. What types of lifestyle photos and presentation would increase click-through rate?`
   }
 
+  // Marcus writes listing text. Publishing to Etsy is not built yet, so nothing is marked as listed here:
+  // a product only counts as listed once it really has an Etsy listing id.
   async processWithAi(task: Task): Promise<void> {
-    const etsy = isEtsyConnected()
-
     this.log(`Thinking about: ${task.title}...`, 'thinking', task.id)
     this.updateProgress(task.id, 15, 'Analyzing task...')
     await new Promise(r => setTimeout(r, 500))
@@ -47,43 +45,13 @@ Keep responses under 250 words. Focus on search visibility and conversion.`
     this.log('Generating listing content with AI...', 'thinking', task.id)
     this.updateProgress(task.id, 30, 'Consulting AI...')
 
-    const result = await aiChat(this.getEffectiveSystemPrompt(), this.getTaskPrompt(task), { model: this.model })
-
-    if (!result) {
-      this.log('AI unavailable, running simulation...', 'warning', task.id)
-      await this.simulateWork(task.id, this.getSimulationSteps(task))
-      return
-    }
-
+    const result = await askAi(this.getEffectiveSystemPrompt(), this.getTaskPrompt(task), { model: this.model })
     run('UPDATE tasks SET output_data = ? WHERE id = ?', JSON.stringify({ aiResponse: result }), task.id)
 
-    if (etsy && task.type === 'listing_create') {
-      this.log('AI content ready, publishing to Etsy...', 'info', task.id)
-      this.updateProgress(task.id, 60, 'Publishing to Etsy...')
-
-      try {
-        // Try to parse AI response as listing data
-        const jsonMatch = result.match(/\{[\s\S]*\}/)
-        if (jsonMatch) {
-          const listingData = JSON.parse(jsonMatch[0])
-          this.log(`Publishing: "${listingData.title}"`, 'info', task.id)
-          this.updateProgress(task.id, 80, 'Uploading to Etsy...')
-
-          // Store as product in our DB
-          const productId = uuid()
-          const tags = Array.isArray(listingData.tags) ? JSON.stringify(listingData.tags) : '[]'
-          run(
-            `INSERT INTO products (id, shop_id, title, description, tags, price, status, created_by) VALUES (?, ?, ?, ?, ?, ?, 'listed', 'marcus')`,
-            productId, this.shopId, listingData.title || task.title, listingData.description || '', tags, listingData.price || 29.99
-          )
-          this.log(`Product saved to catalog`, 'success', task.id)
-        }
-      } catch (e) {
-        this.log(`Could not auto-publish: ${e}`, 'warning', task.id)
-      }
-    } else {
-      const preview = result.length > 120 ? result.substring(0, 120) + '...' : result
-      this.log(`AI result: ${preview}`, 'info', task.id)
+    const preview = result.length > 120 ? result.substring(0, 120) + '...' : result
+    this.log(`AI result: ${preview}`, 'info', task.id)
+    if (task.type === 'listing_create') {
+      this.log('Listingtekst opgeslagen bij de taak. Niet op Etsy gezet: automatisch publiceren is nog niet gebouwd.', 'info', task.id)
     }
 
     this.updateProgress(task.id, 90, 'Finalizing...')
