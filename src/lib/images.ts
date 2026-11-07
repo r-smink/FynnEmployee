@@ -18,6 +18,64 @@ export function getDailyDesignLimit(): number {
   return Number.isFinite(n) && n >= 0 ? Math.min(n, 50) : DEFAULT_DAILY_DESIGNS
 }
 
+// ─── Model list ───────────────────────────────────────────
+
+// Image models come from a separate OpenRouter endpoint; they answer with images, not text
+export interface ImageModelInfo {
+  id: string
+  name: string
+  provider: string
+  created: number
+  // e.g. "svg" for vector models
+  formats: string[]
+  // Style models only copy the look of example images you send; Luna sends text only, so they can't be used
+  needsReference: boolean
+}
+
+interface OpenRouterImageModel {
+  id: string
+  name: string
+  created: number
+  supported_parameters?: {
+    output_format?: { values?: string[] }
+    input_references?: { min?: number }
+  }
+}
+
+const MODELS_CACHE_MS = 60 * 60 * 1000
+const modelCache = globalThis as unknown as { __fynnImageModels?: { at: number; models: ImageModelInfo[] } }
+
+export const imageModelCache = () => modelCache.__fynnImageModels?.models ?? []
+
+export async function loadImageModels(): Promise<ImageModelInfo[]> {
+  const hit = modelCache.__fynnImageModels
+  if (hit && Date.now() - hit.at < MODELS_CACHE_MS) return hit.models
+  const res = await fetch('https://openrouter.ai/api/v1/images/models', { signal: AbortSignal.timeout(10_000) })
+  if (!res.ok) throw new Error(`OpenRouter ${res.status}`)
+  const { data } = (await res.json()) as { data: OpenRouterImageModel[] }
+  const models = data
+    .map(m => ({
+      id: m.id,
+      name: m.name.replace(/^[^:]+:\s*/, ''),
+      provider: m.id.split('/')[0],
+      created: m.created,
+      formats: m.supported_parameters?.output_format?.values ?? [],
+      needsReference: (m.supported_parameters?.input_references?.min ?? 0) > 0,
+    }))
+    .sort((a, b) => a.provider.localeCompare(b.provider) || b.created - a.created)
+  modelCache.__fynnImageModels = { at: Date.now(), models }
+  return models
+}
+
+// Why a model can't be used for Luna's designs, or null when it can (unknown models get the benefit of the doubt)
+export async function imageModelProblem(model: string): Promise<string | null> {
+  const info = (await loadImageModels().catch(imageModelCache)).find(m => m.id === model)
+  if (info?.needsReference) {
+    return `Beeldmodel ${model} heeft verplicht een voorbeeldafbeelding nodig om de stijl van te kopiëren en werkt niet voor Luna. Kies bij Instellingen een ander model, bijvoorbeeld ${DEFAULT_IMAGE_MODEL}.`
+  }
+  return null
+}
+
 export interface GeneratedImage {
   data: Buffer
   mediaType: string

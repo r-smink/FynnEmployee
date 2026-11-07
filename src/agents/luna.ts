@@ -3,7 +3,7 @@ import { BaseAgent } from './base-agent'
 import { askAi } from '@/lib/ai'
 import { get, run } from '@/lib/db'
 import {
-  generateImage, checkDesign, saveDesign, getImageModel, getDailyDesignLimit, MAX_DESIGNS_IN_REVIEW,
+  generateImage, checkDesign, saveDesign, getImageModel, getDailyDesignLimit, imageModelProblem, MAX_DESIGNS_IN_REVIEW,
 } from '@/lib/images'
 import { pickTheme, findTheme, activeThemes } from '@/lib/theme-store'
 import { isSeasonal, formatMonthDay, type DesignTheme } from '@/lib/themes'
@@ -79,6 +79,10 @@ Keep responses under 200 words. Be creative and market-aware.`
       this.log(`${blocked} Alleen een ontwerpbriefing.`, 'info', task.id)
       return super.processWithAi(task)
     }
+
+    // Check before writing the brief, so an unusable model doesn't also cost a text call
+    const problem = await imageModelProblem(getImageModel())
+    if (problem) throw new Error(problem)
 
     const product = task.title.match(/"[^"]+" (.+)$/)?.[1] || 'T-Shirt'
 

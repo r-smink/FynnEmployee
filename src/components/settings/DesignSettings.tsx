@@ -24,7 +24,10 @@ export function DesignSettings() {
   useEffect(() => { if (imageModel) setModel(m => m || imageModel) }, [imageModel])
 
   const selected = imageModels.find(m => m.id === model.trim())
-  const vector = imageModels.filter(m => m.formats.includes('svg')).slice(0, 6)
+  // Style models need example images, which Luna doesn't send; they are left out of the suggestions
+  const usable = imageModels.filter(m => !m.needsReference)
+  const vector = usable.filter(m => m.formats.includes('svg')).slice(0, 6)
+  const unusable = !!selected?.needsReference
 
   const save = async () => {
     setSaving(true)
@@ -58,10 +61,12 @@ export function DesignSettings() {
       <input className="fynn-inp" list={listId} value={model} onChange={e => setModel(e.target.value)}
         placeholder="recraft/recraft-v4-vector" spellCheck={false} />
       <datalist id={listId}>
-        {imageModels.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+        {usable.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
       </datalist>
       <div className="text-[11.5px] mt-1.5 min-h-4" style={{ color: 'var(--text-s)' }}>
-        {selected
+        {unusable
+          ? <span style={{ color: '#dc2626' }}><b>{selected!.name}</b> werkt niet voor Luna: dit stijlmodel heeft verplicht een voorbeeldafbeelding nodig. Kies een ander model.</span>
+          : selected
           ? <span><b style={{ color: 'var(--text-b)' }}>{selected.name}</b>{selected.formats.includes('svg') ? ' · vector (SVG), schaalbaar voor print' : ' · pixelafbeelding'}</span>
           : model.trim() && imageModels.length > 0
             ? <span style={{ color: '#d97706' }}>Onbekend beeldmodel op OpenRouter, controleer de ID</span>
@@ -85,7 +90,7 @@ export function DesignSettings() {
 
       {error && <p className="text-xs px-3 py-2 rounded-lg mt-3" style={{ background: 'var(--fyn-danger-light)', color: '#b91c1c' }}>{error}</p>}
       <div className="flex flex-wrap gap-2.5 mt-4">
-        <button className="fynn-btn" onClick={save} disabled={saving || !model.trim()}>
+        <button className="fynn-btn" onClick={save} disabled={saving || !model.trim() || unusable}>
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : saved ? <Check className="w-4 h-4" /> : null}
           {saving ? 'Opslaan…' : saved ? 'Opgeslagen!' : 'Opslaan'}
         </button>
