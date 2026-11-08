@@ -59,3 +59,9 @@ export function productSpec(category: string | null): ProductSpec | null {
   if (!category) return null
   return PRODUCT_SPECS[category] ?? PRODUCT_SPECS[ALIASES[category]] ?? null
 }
+
+// The product type name used now, also for older names; null when the type is not made automatically
+export function productType(category: string | null): string | null {
+  if (!category) return null
+  return PRODUCT_SPECS[category] ? category : ALIASES[category] ?? null
+}
