@@ -3,7 +3,7 @@
 import { useRef, useState } from 'react'
 import { GRID_LIMITS, ROOM_SIZE_MAX, fitsGrid, validatePlacement, type OfficeGrid, type Room } from '@/lib/office'
 import type { AgentData } from '@/hooks/use-agents'
-import { INSET, corridorFloor, corridorRoute, diamond, isoLayout, paintOrder, type Pt } from './isometric-utils'
+import { HH, HW, INSET, corridorFloor, corridorRoute, diamond, isoLayout, paintOrder, type Pt } from './isometric-utils'
 import { IsometricRoom } from './IsometricRoom'
 import { IsometricAgent } from './IsometricAgent'
 
@@ -37,6 +37,16 @@ const EDIT_PAD = 2
 
 const CORNER_CURSOR: Record<Corner, string> = { e: 'nwse-resize', w: 'nesw-resize', s: 'ns-resize' }
 const CORNER_TITLE: Record<Corner, string> = { e: 'Sleep om breder of smaller te maken', w: 'Sleep om dieper of ondieper te maken', s: 'Sleep om groter of kleiner te maken' }
+
+// Where the agents of a room stand: the first at the desk, then around it (grid steps, scaled to the room)
+const SEATS: [number, number][] = [[0, 0], [1, 0], [0, 1], [-1, 0], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]
+
+function seat(i: number, room: RoomRect): Pt {
+  const [a, b] = SEATS[i % SEATS.length]
+  const extra = Math.floor(i / SEATS.length) * 8
+  const du = a * (0.27 + 0.3 * (room.width - 1)), dv = b * (0.27 + 0.3 * (room.depth - 1))
+  return { x: (du - dv) * HW - 6 + extra, y: (du + dv) * HH + 4 }
+}
 
 const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v))
 const rectOf = (r: RoomRect): RoomRect => ({ col: r.col, row: r.row, width: r.width, depth: r.depth })
@@ -94,7 +104,7 @@ export function IsometricFloorPlan({ grid, rooms, agents, editMode, zoom = 1, se
   }
 
   // Agents without a room walk around the office ("onderweg")
-  const seated = new Set(rooms.map(r => r.agent_id).filter(Boolean))
+  const seated = new Set(rooms.flatMap(r => r.agent_ids))
   const wandering = agents.filter(a => !seated.has(a.id))
   const ordered = paintOrder(rooms)
   const route = (i: number): Pt[] => {
@@ -221,7 +231,10 @@ export function IsometricFloorPlan({ grid, rooms, agents, editMode, zoom = 1, se
       })}
 
       {paintOrder(shownRooms).map((room) => {
-        const agent = room.agent_id ? agentById.get(room.agent_id) : undefined
+        // Back to front, so agents in front are drawn over the ones behind them
+        const staff = room.agent_ids.flatMap(id => agentById.get(id) ?? [])
+          .map((agent, i) => ({ agent, at: seat(i, room) }))
+          .sort((p, q) => p.at.y - q.at.y)
         const dragging = drag?.kind === 'room' && drag.room.id === room.id && (drag.moved || drag.corner !== null)
         return (
           <IsometricRoom key={room.id} room={room} layout={L} editMode={editMode}
@@ -231,16 +244,17 @@ export function IsometricFloorPlan({ grid, rooms, agents, editMode, zoom = 1, se
             onClick={!editMode && onRoomClick ? () => onRoomClick(room) : undefined}
             onPointerDown={editMode ? e => startRoom(e, rooms.find(r => r.id === room.id)!, null) : undefined}
             onHover={editMode ? h => h && !drag && setHoverRoomId(room.id) : undefined}>
-            {agent && (
+            {staff.map(({ agent, at }) => (
               <IsometricAgent
+                key={agent.id}
                 name={agent.name}
                 color={agent.color}
                 status={agent.status}
                 isManager={agent.is_manager === 1}
-                x={-6} y={4}
+                x={at.x} y={at.y}
                 onClick={!editMode && onAgentClick ? () => onAgentClick(agent) : undefined}
               />
-            )}
+            ))}
           </IsometricRoom>
         )
       })}

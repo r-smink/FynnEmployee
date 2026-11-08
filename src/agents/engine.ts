@@ -4,6 +4,7 @@ import { BaseAgent } from './base-agent'
 import type { Agent } from './types'
 import { purgeDemoDataIfLive } from '@/lib/demo-data'
 import { startOrderLoop } from '@/lib/orders'
+import { isAiEnabled } from '@/lib/ai'
 
 class AgentEngine {
   shops: Map<string, Map<string, BaseAgent>> = new Map()
@@ -50,7 +51,8 @@ class AgentEngine {
     const timer = setTimeout(async () => {
       if (!this.running.get(shopId)) return
 
-      if (agent.enabled && agent.status === 'idle') {
+      // In AI Live an agent only starts a task when there is real work for it
+      if (agent.enabled && agent.status === 'idle' && (!isAiEnabled() || agent.hasRealWork())) {
         try {
           const task = agent.createTask()
           await agent.processTask(task)

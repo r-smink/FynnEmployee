@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { v4 as uuid } from 'uuid'
-import { get, run } from '@/lib/db'
-import { ensureRooms, getGrid, getRooms, getRoom, releaseAgent, setGrid } from '@/lib/rooms'
+import { run } from '@/lib/db'
+import { ensureRooms, getGrid, getRooms, getRoom, parseAgentIds, setGrid, setRoomAgents } from '@/lib/rooms'
 import { ROOM_FUNCTIONS, isRoomFunction, validatePlacement } from '@/lib/office'
 
 export const dynamic = 'force-dynamic'
@@ -27,21 +27,23 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     color: typeof body.color === 'string' && body.color ? body.color : def.color,
     col: Number(body.col), row: Number(body.row),
     width: Number(body.width ?? 1), depth: Number(body.depth ?? 1),
-    agent_id: typeof body.agent_id === 'string' && body.agent_id ? body.agent_id : null,
   }
+  const agentIds = parseAgentIds(body.agent_ids)
+  if (agentIds === null) return NextResponse.json({ error: 'agent_ids moet een lijst zijn' }, { status: 400 })
 
   const error = validatePlacement(room, getRooms(shopId), getGrid(shopId))
   if (error) return NextResponse.json({ error }, { status: 400 })
-  if (room.agent_id && !get('SELECT id FROM agents WHERE id = ? AND shop_id = ?', room.agent_id, shopId)) {
-    return NextResponse.json({ error: 'Agent niet gevonden' }, { status: 400 })
-  }
 
-  if (room.agent_id) releaseAgent(shopId, room.agent_id)
   run(
-    `INSERT INTO rooms (id, shop_id, name, function, color, col, row, width, depth, agent_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    room.id, shopId, room.name, fn, room.color, room.col, room.row, room.width, room.depth, room.agent_id
+    `INSERT INTO rooms (id, shop_id, name, function, color, col, row, width, depth)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    room.id, shopId, room.name, fn, room.color, room.col, room.row, room.width, room.depth
   )
+  const agentError = setRoomAgents(shopId, room.id, agentIds ?? [])
+  if (agentError) {
+    run('DELETE FROM rooms WHERE id = ?', room.id)
+    return NextResponse.json({ error: agentError }, { status: 400 })
+  }
   return NextResponse.json(getRoom(shopId, room.id))
 }
 

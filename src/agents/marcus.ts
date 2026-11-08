@@ -1,6 +1,4 @@
 import { BaseAgent } from './base-agent'
-import { askAi } from '@/lib/ai'
-import { run } from '@/lib/db'
 import type { AgentConfig, Task, SimulationStep, TaskType } from './types'
 
 const LISTING_ACTIONS = [
@@ -35,27 +33,10 @@ Keep responses under 250 words. Focus on search visibility and conversion.`
     return `Suggest photo/mockup improvements for: ${task.title}. What types of lifestyle photos and presentation would increase click-through rate?`
   }
 
-  // Marcus writes listing text. Publishing to Etsy is not built yet, so nothing is marked as listed here:
-  // a product only counts as listed once it really has an Etsy listing id.
-  async processWithAi(task: Task): Promise<void> {
-    this.log(`Thinking about: ${task.title}...`, 'thinking', task.id)
-    this.updateProgress(task.id, 15, 'Analyzing task...')
-    await new Promise(r => setTimeout(r, 500))
-
-    this.log('Generating listing content with AI...', 'thinking', task.id)
-    this.updateProgress(task.id, 30, 'Consulting AI...')
-
-    const result = await askAi(this.getEffectiveSystemPrompt(), this.getTaskPrompt(task), { model: this.model })
-    run('UPDATE tasks SET output_data = ? WHERE id = ?', JSON.stringify({ aiResponse: result }), task.id)
-
-    const preview = result.length > 120 ? result.substring(0, 120) + '...' : result
-    this.log(`AI result: ${preview}`, 'info', task.id)
-    if (task.type === 'listing_create') {
-      this.log('Listingtekst opgeslagen bij de taak. Niet op Etsy gezet: automatisch publiceren is nog niet gebouwd.', 'info', task.id)
-    }
-
-    this.updateProgress(task.id, 90, 'Finalizing...')
-    await new Promise(r => setTimeout(r, 500))
+  // Live: Marcus' real work is putting approved designs on Etsy (lib/publish.ts logs as him).
+  // He doesn't invent listings to write about in between.
+  hasRealWork(): boolean {
+    return false
   }
 
   generateTask(): { type: TaskType; title: string; description: string } {

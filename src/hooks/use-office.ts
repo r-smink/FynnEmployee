@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { DEFAULT_GRID, type OfficeGrid, type Room } from '@/lib/office'
 
-export type RoomInput = Partial<Pick<Room, 'name' | 'function' | 'color' | 'col' | 'row' | 'width' | 'depth' | 'agent_id'>>
+export type RoomInput = Partial<Pick<Room, 'name' | 'function' | 'color' | 'col' | 'row' | 'width' | 'depth' | 'agent_ids'>>
 
 // Mutations resolve to an error message, or null on success
 export function useOffice(shopId: string) {
@@ -50,7 +50,9 @@ export function useOffice(shopId: string) {
     createRoom: (input: RoomInput) => send(`/api/shops/${shopId}/rooms`, 'POST', input),
     // Shown right away so a dragged room stays where it was dropped while it saves
     updateRoom: (roomId: string, input: RoomInput) => {
-      setRooms(rs => rs.map(r => (r.id === roomId ? { ...r, ...input } : r)))
+      // Agents moved in here leave their old room
+      const moved = new Set(input.agent_ids ?? [])
+      setRooms(rs => rs.map(r => (r.id === roomId ? { ...r, ...input } : { ...r, agent_ids: r.agent_ids.filter(id => !moved.has(id)) })))
       return send(`/api/shops/${shopId}/rooms/${roomId}`, 'PATCH', input)
     },
     deleteRoom: (roomId: string) => send(`/api/shops/${shopId}/rooms/${roomId}`, 'DELETE'),

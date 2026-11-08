@@ -43,7 +43,7 @@ export interface CheckResult {
 }
 
 const CHECK_EVERY_MS = 5 * 60_000
-const g = globalThis as unknown as { __fynnOrderLoop?: NodeJS.Timeout; __fynnOrderCheck?: Promise<CheckResult> }
+const g = globalThis as unknown as { __fynnOrderLoop?: NodeJS.Timeout; __fynnOrderCheck?: Promise<CheckResult>; __fynnOrderCheckAt?: number }
 
 // Checks Etsy and Printful every few minutes for as long as the app runs
 export function startOrderLoop() {
@@ -55,8 +55,19 @@ export function startOrderLoop() {
 
 // One check at a time; a second caller waits for the running one
 export function checkOrders(): Promise<CheckResult> {
-  g.__fynnOrderCheck ??= runCheck().finally(() => { g.__fynnOrderCheck = undefined })
+  g.__fynnOrderCheck ??= runCheck().finally(() => { g.__fynnOrderCheck = undefined; g.__fynnOrderCheckAt = Date.now() })
   return g.__fynnOrderCheck
+}
+
+export const msSinceLastCheck = () => Date.now() - (g.__fynnOrderCheckAt ?? 0)
+
+// Orders the app still has to send or follow until they ship
+export function openOrderCount(shopId: string): number {
+  return get<{ n: number }>(
+    `SELECT COUNT(*) AS n FROM orders WHERE shop_id = ? AND fulfill_error IS NULL AND (
+      (status = 'new' AND fulfillment_status = 'pending') OR (status = 'processing' AND fulfillment_id IS NOT NULL AND tracking_sent = 0))`,
+    shopId
+  )!.n
 }
 
 async function runCheck(): Promise<CheckResult> {

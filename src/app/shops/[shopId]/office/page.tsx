@@ -57,7 +57,8 @@ export default function OfficePage({ params }: { params: Promise<{ shopId: strin
   const agentById = new Map(agents.map(a => [a.id, a]))
   const selectedAgent = selectedAgentId ? agentById.get(selectedAgentId) : undefined
   const selectedRoom = rooms.find(r => r.id === selectedRoomId)
-  const activeRooms = rooms.filter(r => r.agent_id && agentById.get(r.agent_id)?.status === 'working').length
+  const roomAgents = (room: Room) => room.agent_ids.flatMap(id => agentById.get(id) ?? [])
+  const activeRooms = rooms.filter(r => roomAgents(r).some(a => a.status === 'working')).length
 
   const closePanels = () => { setSelectedAgentId(null); setSelectedRoomId(null); setEditing(null) }
 
@@ -67,7 +68,7 @@ export default function OfficePage({ params }: { params: Promise<{ shopId: strin
     if (editMode) {
       setEditing({
         room,
-        initial: { name: room.name, function: room.function, color: room.color, col: room.col, row: room.row, width: room.width, depth: room.depth, agent_id: room.agent_id },
+        initial: { name: room.name, function: room.function, color: room.color, col: room.col, row: room.row, width: room.width, depth: room.depth, agent_ids: room.agent_ids },
       })
     } else {
       setSelectedAgentId(null)
@@ -197,7 +198,9 @@ export default function OfficePage({ params }: { params: Promise<{ shopId: strin
 
         <div className="grid gap-3 mt-4" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))' }}>
           {rooms.map(room => {
-            const agent = room.agent_id ? agentById.get(room.agent_id) : undefined
+            const staff = roomAgents(room)
+            // The dot and status follow whoever is working, else the first agent
+            const agent = staff.find(a => a.status === 'working') ?? staff[0]
             const working = agent?.status === 'working'
             return (
               <button key={room.id} onClick={() => handleRoomClick(room)}
@@ -208,7 +211,7 @@ export default function OfficePage({ params }: { params: Promise<{ shopId: strin
                 <div className="flex-1 min-w-0">
                   <div className="text-[13px] font-bold truncate" style={{ color: 'var(--text-h)' }}>{room.name}</div>
                   <div className="text-[11.5px] truncate" style={{ color: 'var(--text-m)' }}>
-                    {agent ? agent.name : ROOM_FUNCTIONS[room.function].label} · {room.width}×{room.depth}
+                    {staff.length ? staff.map(a => a.name).join(', ') : ROOM_FUNCTIONS[room.function].label} · {room.width}×{room.depth}
                   </div>
                 </div>
                 <span className="text-[11px] font-bold" style={{ color: working ? agent!.color : 'var(--text-s)' }}>
@@ -223,12 +226,12 @@ export default function OfficePage({ params }: { params: Promise<{ shopId: strin
       {/* View mode panels */}
       <SlideOverPanel open={!!selectedAgent} onClose={closePanels}
         title={selectedAgent?.name || ''} subtitle="Agent-details" color={selectedAgent?.color}>
-        {selectedAgent && <AgentPanel agent={selectedAgent} roomName={rooms.find(r => r.agent_id === selectedAgent.id)?.name} />}
+        {selectedAgent && <AgentPanel agent={selectedAgent} roomName={rooms.find(r => r.agent_ids.includes(selectedAgent.id))?.name} />}
       </SlideOverPanel>
       <SlideOverPanel open={!!selectedRoom && !selectedAgent} onClose={closePanels}
         title={selectedRoom?.name || ''} subtitle="Kamer-details" color={selectedRoom?.color}>
         {selectedRoom && (
-          <RoomPanel room={selectedRoom} agent={selectedRoom.agent_id ? agentById.get(selectedRoom.agent_id) : undefined} onAgentClick={openAgent} />
+          <RoomPanel room={selectedRoom} agents={roomAgents(selectedRoom)} onAgentClick={openAgent} />
         )}
       </SlideOverPanel>
 

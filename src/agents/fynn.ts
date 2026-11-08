@@ -1,5 +1,6 @@
 import { BaseAgent } from './base-agent'
-import { all } from '@/lib/db'
+import { all, get } from '@/lib/db'
+import { isAiEnabled } from '@/lib/ai'
 import type { AgentConfig, Task, SimulationStep, TaskType, Agent } from './types'
 
 export class FynnAgent extends BaseAgent {
@@ -23,12 +24,45 @@ Keep responses under 200 words. Be decisive and leadership-oriented.`
       return `Review the current workforce status and delegate tasks. Which agents are idle? What tasks should be prioritized? Provide 3 specific delegation instructions.`
     }
     if (task.type === 'manager_review') {
-      return `Review overall store performance. How are the agents performing? Any bottlenecks? Provide a brief performance summary with 2-3 actionable recommendations.`
+      return `Review the store using only the figures given below; do not invent numbers, products or orders. Where is work stuck, what should the owner do first, and which agent is failing? Give a short summary and 2-3 concrete actions. Answer in Dutch.`
     }
     return `Analyze the workforce and suggest optimizations. Are there efficiency improvements? Should we adjust task scheduling? Provide 3 specific optimization ideas.`
   }
 
+  // Live: one review an hour, with real numbers from the shop
+  hasRealWork(): boolean {
+    return !this.workedWithin(60)
+  }
+
+  protected async getTaskContext(task: Task): Promise<string | null> {
+    if (task.type !== 'manager_review') return null
+    const n = (sql: string) => get<{ n: number }>(sql, this.shopId)?.n ?? 0
+    const perAgent = all<{ name: string; done: number; failed: number }>(
+      `SELECT a.name,
+         SUM(CASE WHEN t.status = 'completed' THEN 1 ELSE 0 END) AS done,
+         SUM(CASE WHEN t.status = 'failed' THEN 1 ELSE 0 END) AS failed
+       FROM agents a LEFT JOIN tasks t ON t.agent_id = a.id AND t.shop_id = a.shop_id AND t.demo = 0
+         AND t.completed_at >= datetime('now', '-1 day')
+       WHERE a.shop_id = ? GROUP BY a.id ORDER BY a.name`,
+      this.shopId
+    )
+    return [
+      'Figures for this shop right now:',
+      `- Designs waiting for the owner to review: ${n("SELECT COUNT(*) AS n FROM products WHERE shop_id = ? AND status = 'review'")}`,
+      `- Approved designs failed to reach Etsy: ${n("SELECT COUNT(*) AS n FROM products WHERE shop_id = ? AND publish_status = 'failed'")}`,
+      `- Products on Etsy (draft or live): ${n("SELECT COUNT(*) AS n FROM products WHERE shop_id = ? AND publish_status IN ('etsy_draft', 'etsy_live')")}`,
+      `- Orders in the last 7 days: ${n("SELECT COUNT(*) AS n FROM orders WHERE shop_id = ? AND created_at >= datetime('now', '-7 days')")}`,
+      `- Printful drafts waiting for the owner to confirm: ${n("SELECT COUNT(*) AS n FROM orders WHERE shop_id = ? AND fulfillment_status = 'draft' AND status = 'processing'")}`,
+      `- Orders with an error: ${n("SELECT COUNT(*) AS n FROM orders WHERE shop_id = ? AND fulfill_error IS NOT NULL")}`,
+      'Agent tasks in the last 24 hours (done / failed):',
+      ...perAgent.map(a => `- ${a.name}: ${a.done ?? 0} / ${a.failed ?? 0}`),
+    ].join('\n')
+  }
+
   generateTask(): { type: TaskType; title: string; description: string } {
+    if (isAiEnabled()) {
+      return { type: 'manager_review', title: 'Overzicht van de winkel', description: 'Wat staat vast en wat moet de eigenaar eerst doen' }
+    }
     const types: TaskType[] = ['manager_delegate', 'manager_review', 'manager_optimize']
     const type = types[Math.floor(Math.random() * types.length)]
 

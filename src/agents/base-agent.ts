@@ -36,6 +36,20 @@ export abstract class BaseAgent {
   abstract getSystemPrompt(): string
   abstract getTaskPrompt(task: Task): string
 
+  // AI Live: whether there is something real to do right now. Without it the agent stays idle
+  // instead of making up work (demo mode always simulates).
+  hasRealWork(): boolean {
+    return true
+  }
+
+  // Whether this agent started a real (not simulated) task in the last few minutes
+  protected workedWithin(minutes: number): boolean {
+    return !!get(
+      "SELECT 1 FROM tasks WHERE agent_id = ? AND shop_id = ? AND demo = 0 AND created_at >= datetime('now', ?) LIMIT 1",
+      this.id, this.shopId, `-${minutes} minutes`
+    )
+  }
+
   // Agent prompt plus the shop-wide prompt from the shop settings, which applies to every agent
   getEffectiveSystemPrompt(): string {
     const base = this.customPrompt || this.getSystemPrompt()

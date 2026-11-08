@@ -97,6 +97,22 @@ function migrate(database: Database.Database) {
   addColumn(database, 'orders', 'carrier', 'TEXT')
   addColumn(database, 'orders', 'tracking_url', 'TEXT')
   addColumn(database, 'orders', 'tracking_sent', 'INTEGER DEFAULT 0')
+  // A room can hold several agents: each agent points to its room. rooms.agent_id is the old
+  // one-agent-per-room link, copied over once and no longer used.
+  addColumn(database, 'agents', 'room_id', 'TEXT',
+    `UPDATE agents SET room_id = (SELECT r.id FROM rooms r WHERE r.agent_id = agents.id AND r.shop_id = agents.shop_id LIMIT 1)`)
+
+  // Before agents only worked on real things in AI Live, Aria, Marcus and Rex ran made-up tasks
+  // (orders, listings and customers that didn't exist). Marked as demo once, so the demo cleanup removes them.
+  database.transaction(() => {
+    if (database.prepare("SELECT 1 FROM settings WHERE key = 'made_up_tasks_cleared'").get()) return
+    const madeUp = `SELECT t.id FROM tasks t JOIN agents a ON a.id = t.agent_id AND a.shop_id = t.shop_id
+      WHERE t.demo = 0 AND a.template_type IN ('fulfillment', 'listing', 'support')`
+    database.exec(`UPDATE activity_log SET demo = 1 WHERE task_id IN (${madeUp})`)
+    database.exec(`UPDATE tasks SET demo = 1 WHERE id IN (${madeUp})`)
+    database.exec("INSERT INTO settings (key, value) VALUES ('made_up_tasks_cleared', '1')")
+  }).immediate()
+
   // Older versions read a receipt field Etsy doesn't send, so imported orders got the id "undefined"
   database.exec("DELETE FROM orders WHERE etsy_order_id = 'undefined' AND fulfillment_id IS NULL")
 }

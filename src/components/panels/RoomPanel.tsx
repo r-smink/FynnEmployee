@@ -5,7 +5,7 @@ import type { AgentData } from '@/hooks/use-agents'
 import { AgentAvatar, AgentStatusPill } from '@/components/dashboard/agent-card'
 import { agentRole, alpha } from '@/lib/labels'
 
-export function RoomPanel({ room, agent, onAgentClick }: { room: Room; agent?: AgentData; onAgentClick?: (a: AgentData) => void }) {
+export function RoomPanel({ room, agents, onAgentClick }: { room: Room; agents: AgentData[]; onAgentClick?: (a: AgentData) => void }) {
   const fn = ROOM_FUNCTIONS[room.function]
 
   return (
@@ -42,18 +42,24 @@ export function RoomPanel({ room, agent, onAgentClick }: { room: Room; agent?: A
       </div>
 
       <div>
-        <h4 className="text-xs font-bold uppercase tracking-[.05em] mb-2" style={{ color: 'var(--text-m)' }}>Medewerker</h4>
-        {agent ? (
-          <button onClick={() => onAgentClick?.(agent)} className="fynn-well w-full p-3 flex items-center gap-3 text-left cursor-pointer">
-            <AgentAvatar agent={agent} size={38} />
-            <div className="flex-1 min-w-0">
-              <div className="text-[13px] font-bold truncate" style={{ color: 'var(--text-h)' }}>{agent.name}</div>
-              <div className="text-[11.5px] truncate" style={{ color: 'var(--text-m)' }}>
-                {agent.currentTask ? agent.currentTask.title : agentRole(agent)}
-              </div>
-            </div>
-            <AgentStatusPill agent={agent} />
-          </button>
+        <h4 className="text-xs font-bold uppercase tracking-[.05em] mb-2" style={{ color: 'var(--text-m)' }}>
+          {agents.length > 1 ? `Medewerkers (${agents.length})` : 'Medewerker'}
+        </h4>
+        {agents.length > 0 ? (
+          <div className="flex flex-col gap-2">
+            {agents.map(agent => (
+              <button key={agent.id} onClick={() => onAgentClick?.(agent)} className="fynn-well w-full p-3 flex items-center gap-3 text-left cursor-pointer">
+                <AgentAvatar agent={agent} size={38} />
+                <div className="flex-1 min-w-0">
+                  <div className="text-[13px] font-bold truncate" style={{ color: 'var(--text-h)' }}>{agent.name}</div>
+                  <div className="text-[11.5px] truncate" style={{ color: 'var(--text-m)' }}>
+                    {agent.currentTask ? agent.currentTask.title : agentRole(agent)}
+                  </div>
+                </div>
+                <AgentStatusPill agent={agent} />
+              </button>
+            ))}
+          </div>
         ) : (
           <p className="text-[13px]" style={{ color: 'var(--text-m)' }}>
             Nog niemand aan het werk — wijs een agent toe via &lsquo;Kantoor bewerken&rsquo;.

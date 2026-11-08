@@ -6,11 +6,11 @@ import { ROOM_FUNCTIONS, ROOM_FUNCTION_IDS, ROOM_SIZE_MAX, validatePlacement, ty
 import type { AgentData } from '@/hooks/use-agents'
 import type { RoomInput } from '@/hooks/use-office'
 
-export type RoomDraft = Required<Omit<RoomInput, 'agent_id'>> & { agent_id: string | null }
+export type RoomDraft = Required<RoomInput>
 
 export function draftFor(fn: RoomFunction, col: number, row: number): RoomDraft {
   const def = ROOM_FUNCTIONS[fn]
-  return { name: def.label, function: fn, color: def.color, col, row, width: 1, depth: 1, agent_id: null }
+  return { name: def.label, function: fn, color: def.color, col, row, width: 1, depth: 1, agent_ids: [] }
 }
 
 function Stepper({ label, value, min, max, onChange }: { label: string; value: number; min: number; max: number; onChange: (v: number) => void }) {
@@ -71,7 +71,10 @@ export function RoomEditor({ room, initial, grid, rooms, agents, onSave, onDelet
 
   const placementError = validatePlacement({ ...draft, id: room?.id }, rooms, grid)
   const error = placementError || serverError
-  const roomOfAgent = (agentId: string) => rooms.find(r => r.agent_id === agentId && r.id !== room?.id)
+  const roomOfAgent = (agentId: string) => rooms.find(r => r.agent_ids.includes(agentId) && r.id !== room?.id)
+  const toggleAgent = (agentId: string) => set('agent_ids', draft.agent_ids.includes(agentId)
+    ? draft.agent_ids.filter(id => id !== agentId)
+    : [...draft.agent_ids, agentId])
 
   const save = async () => {
     setSaving(true)
@@ -122,14 +125,27 @@ export function RoomEditor({ room, initial, grid, rooms, agents, onSave, onDelet
       </div>
 
       <div>
-        <label className="fynn-label">Medewerker</label>
-        <select className="fynn-inp" value={draft.agent_id || ''} onChange={e => set('agent_id', e.target.value || null)}>
-          <option value="">Geen (lege kamer)</option>
+        <label className="fynn-label">Medewerkers {draft.agent_ids.length > 0 && <span style={{ color: 'var(--text-m)' }}>({draft.agent_ids.length})</span>}</label>
+        <p className="fynn-hint">Vink iedereen aan die in deze kamer werkt. Een agent werkt in één kamer tegelijk.</p>
+        <div className="flex flex-col gap-1.5">
           {agents.map(a => {
+            const checked = draft.agent_ids.includes(a.id)
             const other = roomOfAgent(a.id)
-            return <option key={a.id} value={a.id}>{a.name}{other ? ` — verhuist uit ${other.name}` : ''}</option>
+            return (
+              <label key={a.id} className="flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-pointer"
+                style={{ background: checked ? 'var(--well)' : 'transparent', border: `1px solid ${checked ? a.color : 'var(--well-border)'}` }}>
+                <input type="checkbox" checked={checked} onChange={() => toggleAgent(a.id)} className="w-4 h-4 cursor-pointer" style={{ accentColor: a.color }} />
+                <span className="w-2.5 h-2.5 rounded-full flex-none" style={{ background: a.color }} />
+                <span className="text-[13px] font-semibold flex-1" style={{ color: 'var(--text-h)' }}>{a.name}</span>
+                {other && (
+                  <span className="text-[11.5px]" style={{ color: checked ? '#d97706' : 'var(--text-s)' }}>
+                    {checked ? `verhuist uit ${other.name}` : `zit in ${other.name}`}
+                  </span>
+                )}
+              </label>
+            )
           })}
-        </select>
+        </div>
       </div>
 
       {error && (

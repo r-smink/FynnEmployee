@@ -1,4 +1,5 @@
 import { BaseAgent } from './base-agent'
+import { isAiEnabled } from '@/lib/ai'
 import { activeThemes } from '@/lib/theme-store'
 import { isSeasonal, formatMonthDay } from '@/lib/themes'
 import { getShopSetting } from '@/lib/shop-settings'
@@ -52,8 +53,16 @@ Keep responses under 200 words. Be data-driven and specific with numbers.`
     ].join('\n\n')
   }
 
+  // Live: a trend or price analysis on real Etsy figures once an hour. The daily report is demo only:
+  // without real sales data it would be made up.
+  hasRealWork(): boolean {
+    return !this.workedWithin(60)
+  }
+
   generateTask(): { type: TaskType; title: string; description: string } {
-    const types: TaskType[] = ['analytics_report', 'analytics_trend', 'analytics_competitor']
+    const types: TaskType[] = isAiEnabled()
+      ? ['analytics_trend', 'analytics_competitor']
+      : ['analytics_report', 'analytics_trend', 'analytics_competitor']
     const type = types[Math.floor(Math.random() * types.length)]
 
     const titles: Record<string, string> = {

@@ -14,6 +14,11 @@ export class CustomAgent extends BaseAgent {
     return `Complete this task: ${task.title}. ${task.description || ''} Provide a concise result.`
   }
 
+  // Live: an own agent has no built-in source of work, so it runs its prompt once an hour
+  hasRealWork(): boolean {
+    return !this.workedWithin(60)
+  }
+
   generateTask(): { type: TaskType; title: string; description: string } {
     return {
       type: 'custom_task',
