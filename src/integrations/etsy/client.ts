@@ -334,6 +334,24 @@ export async function getReceipt(receiptId: number): Promise<EtsyReceipt> {
   return etsyFetch(`/application/shops/${shopId}/receipts/${receiptId}`)
 }
 
+// Paid, not cancelled orders created since a moment (unix seconds), newest first
+export async function getPaidReceipts(minCreated: number): Promise<EtsyReceipt[]> {
+  const shopId = getShopId()
+  const data = await etsyFetch<{ results: EtsyReceipt[] }>(
+    `/application/shops/${shopId}/receipts?was_paid=true&was_canceled=false&min_created=${minCreated}&limit=100`
+  )
+  return data.results
+}
+
+// Marks the order as shipped on Etsy and gives the buyer the tracking code
+export async function addReceiptTracking(receiptId: number, trackingCode: string, carrierName: string) {
+  const shopId = getShopId()
+  return etsyFetch(`/application/shops/${shopId}/receipts/${receiptId}/tracking`, {
+    method: 'POST',
+    body: form({ tracking_code: trackingCode, carrier_name: carrierName }),
+  })
+}
+
 // ─── Connection Check ─────────────────────────────────────
 
 export function isEtsyConnected(): boolean {
@@ -443,11 +461,18 @@ export interface ReadinessState {
 export interface EtsyReceipt {
   receipt_id: number
   receipt_type: number
-  order_id: number
   buyer_user_id: number
   buyer_email: string
+  // Shipping address
   name: string
+  first_line: string
+  second_line: string | null
+  city: string
+  state: string | null
+  zip: string
+  country_iso: string
   status: string
+  is_paid: boolean
   is_shipped: boolean
   grandtotal: { amount: number; divisor: number; currency_code: string }
   subtotal: { amount: number; divisor: number; currency_code: string }
@@ -462,4 +487,6 @@ export interface EtsyTransaction {
   quantity: number
   price: { amount: number; divisor: number; currency_code: string }
   listing_id: number
+  // Listings made by this app have "PF-<Printful variant id>"
+  sku: string | null
 }

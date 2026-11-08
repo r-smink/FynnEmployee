@@ -43,7 +43,7 @@ export function StatusOverview({ shopId }: { shopId: string }) {
   const { status } = useShopStatus(shopId)
   if (!status?.live) return null
 
-  const waiting = status.review + status.newOrders + status.publishFailed
+  const waiting = status.review + status.newOrders + status.publishFailed + status.ordersToConfirm + status.orderErrors
   const { done, failed, designs } = status.last24h
 
   return (
@@ -66,7 +66,9 @@ export function StatusOverview({ shopId }: { shopId: string }) {
             <>
               {status.review > 0 && <Row href={`/shops/${shopId}/products`} label="Ontwerpen beoordelen" value={status.review} accent="#d97706" />}
               {status.publishFailed > 0 && <Row href={`/shops/${shopId}/products`} label="Niet gelukt naar Etsy" value={status.publishFailed} accent="#dc2626" />}
-              {status.newOrders > 0 && <Row href={`/shops/${shopId}/orders`} label="Nieuwe bestellingen" value={status.newOrders} accent="#d97706" />}
+              {status.ordersToConfirm > 0 && <Row href={`/shops/${shopId}/orders`} label="Bestellingen bevestigen" value={status.ordersToConfirm} accent="#d97706" />}
+              {status.orderErrors > 0 && <Row href={`/shops/${shopId}/orders?tab=fouten`} label="Bestellingen met een fout" value={status.orderErrors} accent="#dc2626" />}
+              {status.newOrders > 0 && <Row href={`/shops/${shopId}/orders`} label="Zelf in Printful aanmaken" value={status.newOrders} accent="#d97706" />}
             </>
           )}
         </Panel>

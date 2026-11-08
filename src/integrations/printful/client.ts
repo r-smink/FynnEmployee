@@ -109,6 +109,16 @@ export async function getOrder(orderId: number): Promise<PrintfulOrder> {
   return printfulFetch(`/orders/${orderId}`)
 }
 
+// Orders this app creates carry the Etsy receipt id as external id
+export async function findOrderByExternalId(externalId: string): Promise<PrintfulOrder | null> {
+  try {
+    return await printfulFetch(`/orders/@${encodeURIComponent(externalId)}`)
+  } catch (err) {
+    if (err instanceof Error && err.message.includes("(404)")) return null
+    throw err
+  }
+}
+
 export async function getOrders(
   status: string = 'open',
   limit: number = 25,
@@ -198,39 +208,6 @@ export async function setWebhook(params: {
   })
 }
 
-// ─── Helper: Build order from Etsy receipt ────────────────
-
-export function buildOrderFromEtsy(params: {
-  recipient: OrderRecipient
-  items: {
-    variantId: number
-    quantity: number
-    designUrl: string
-    retailPrice?: number
-    printPlacement?: string
-  }[]
-  externalId?: string
-  autoConfirm?: boolean
-}): CreatePrintfulOrder {
-  return {
-    recipient: params.recipient,
-    items: params.items.map(item => ({
-      variant_id: item.variantId,
-      quantity: item.quantity,
-      retail_price: item.retailPrice ? String(item.retailPrice) : undefined,
-      files: [
-        {
-          type: item.printPlacement || 'front',
-          url: item.designUrl,
-        },
-      ],
-    })),
-    shipping: 'STANDARD',
-    external_id: params.externalId,
-    confirm: params.autoConfirm ?? false,
-  }
-}
-
 // ─── Types ────────────────────────────────────────────────
 
 export interface PrintfulStore {
@@ -272,7 +249,7 @@ export interface OrderRecipient {
   address1: string
   address2?: string
   city: string
-  state_code: string
+  state_code?: string
   country_code: string
   zip: string
   email?: string
@@ -281,7 +258,9 @@ export interface OrderRecipient {
 
 export interface OrderItemFile {
   type: string  // 'default', 'front', 'back', 'preview'
-  url: string
+  // A file in the Printful file library, or a link Printful downloads
+  id?: number
+  url?: string
   position?: {
     area_width: number
     area_height: number

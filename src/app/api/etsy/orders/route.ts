@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     // Transform to our order format
     const orders = data.results.map(receipt => ({
       id: `ETY-${receipt.receipt_id}`,
-      etsy_order_id: String(receipt.order_id),
+      etsy_order_id: String(receipt.receipt_id),
       etsy_receipt_id: String(receipt.receipt_id),
       customer_name: receipt.name,
       customer_email: receipt.buyer_email,

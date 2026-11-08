@@ -15,15 +15,22 @@ export interface IsoLayout {
   height: number
   // grid node (col,row) -> screen point
   P: (col: number, row: number) => Pt
+  // screen point -> fractional grid position
+  fromScreen: (x: number, y: number) => { col: number; row: number }
 }
 
-export function isoLayout(grid: OfficeGrid): IsoLayout {
-  const offX = grid.rows * HW + MARGIN_X
+// pad: extra tiles of room right and left of the office, so it can be dragged bigger while editing
+export function isoLayout(grid: OfficeGrid, pad = 0): IsoLayout {
+  const offX = (grid.rows + pad) * HW + MARGIN_X
   const offY = MARGIN_TOP
   return {
-    width: (grid.cols + grid.rows) * HW + MARGIN_X * 2,
-    height: (grid.cols + grid.rows) * HH + MARGIN_TOP + MARGIN_BOTTOM,
+    width: (grid.cols + grid.rows + 2 * pad) * HW + MARGIN_X * 2,
+    height: (grid.cols + grid.rows + 2 * pad) * HH + MARGIN_TOP + MARGIN_BOTTOM,
     P: (col, row) => ({ x: (col - row) * HW + offX, y: (col + row) * HH + offY }),
+    fromScreen: (x, y) => {
+      const u = (x - offX) / HW, v = (y - offY) / HH
+      return { col: (u + v) / 2, row: (v - u) / 2 }
+    },
   }
 }
 

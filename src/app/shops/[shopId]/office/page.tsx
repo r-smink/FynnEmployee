@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Building2, Pencil, Check, Plus, Minus, LayoutGrid, ZoomIn, ZoomOut, Store } from 'lucide-react'
 import { Topbar } from '@/components/layout/topbar'
 import { PageBody } from '@/components/layout/app-shell'
-import { IsometricFloorPlan } from '@/components/isometric/IsometricFloorPlan'
+import { IsometricFloorPlan, type RoomRect } from '@/components/isometric/IsometricFloorPlan'
 import { SlideOverPanel } from '@/components/panels/SlideOverPanel'
 import { AgentPanel } from '@/components/panels/AgentPanel'
 import { RoomPanel } from '@/components/panels/RoomPanel'
@@ -89,6 +89,13 @@ export default function OfficePage({ params }: { params: Promise<{ shopId: strin
     setToolbarError(await office.resizeGrid({ cols, rows }))
   }
 
+  // Dropped after dragging: save the new spot or size; an open editor for this room follows along
+  const moveRoom = async (room: Room, rect: RoomRect) => {
+    setToolbarError(null)
+    if (editing?.room?.id === room.id) setEditing({ room: { ...room, ...rect }, initial: { ...editing.initial, ...rect } })
+    setToolbarError(await office.updateRoom(room.id, rect))
+  }
+
   const zoomIndex = ZOOM_LEVELS.indexOf(zoom)
   // Zooming out past the smallest level leaves the building: the shopping street with all shops
   const zoomOut = () => zoomIndex > 0 ? setZoom(ZOOM_LEVELS[zoomIndex - 1]) : router.push('/street')
@@ -132,7 +139,10 @@ export default function OfficePage({ params }: { params: Promise<{ shopId: strin
             </div>
             <GridStepper label="Breedte" value={grid.cols} onChange={v => resize(v, grid.rows)} />
             <GridStepper label="Diepte" value={grid.rows} onChange={v => resize(grid.cols, v)} />
-            <span className="text-xs" style={{ color: 'var(--text-s)' }}>Klik op een kamer om hem te bewerken, of op een lege tegel om er een toe te voegen.</span>
+            <span className="text-xs max-w-[520px]" style={{ color: 'var(--text-s)' }}>
+              Sleep een kamer om hem te verplaatsen. Trek aan de bolletjes op de hoeken van een kamer om hem groter of kleiner te maken,
+              en aan de paarse blokjes om het hele kantoor. Klik op een kamer om hem te bewerken, of op een lege tegel om er een toe te voegen.
+            </span>
             <div className="flex-1" />
             <button className="fynn-btn" style={{ height: 36 }} onClick={() => startNewRoom()}>
               <Plus className="w-4 h-4" /> Kamer toevoegen
@@ -177,6 +187,8 @@ export default function OfficePage({ params }: { params: Promise<{ shopId: strin
               onRoomClick={handleRoomClick}
               onAgentClick={openAgent}
               onEmptyTileClick={startNewRoom}
+              onRoomChange={moveRoom}
+              onGridChange={next => resize(next.cols, next.rows)}
               zoom={zoom}
             />
           )}

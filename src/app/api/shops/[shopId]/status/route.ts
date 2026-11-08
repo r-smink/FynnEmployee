@@ -26,7 +26,16 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ sho
   return NextResponse.json({
     live: isAiEnabled(),
     review: count("SELECT COUNT(*) AS n FROM products WHERE shop_id = ? AND status = 'review'", shopId),
-    newOrders: count("SELECT COUNT(*) AS n FROM orders WHERE shop_id = ? AND status = 'new'", shopId),
+    // Orders the app doesn't send itself (sending is off), drafts to confirm, and ones that failed
+    newOrders: count(
+      "SELECT COUNT(*) AS n FROM orders WHERE shop_id = ? AND status = 'new' AND fulfillment_status = 'manual' AND fulfill_error IS NULL",
+      shopId
+    ),
+    ordersToConfirm: count(
+      "SELECT COUNT(*) AS n FROM orders WHERE shop_id = ? AND status = 'processing' AND fulfillment_status = 'draft' AND fulfill_error IS NULL",
+      shopId
+    ),
+    orderErrors: count("SELECT COUNT(*) AS n FROM orders WHERE shop_id = ? AND fulfill_error IS NOT NULL", shopId),
     approved: count(
       `SELECT COUNT(*) AS n FROM products WHERE shop_id = ? AND status = 'draft' AND design_url IS NOT NULL
        AND COALESCE(publish_status, '') NOT IN ('etsy_draft', 'etsy_live')`,
