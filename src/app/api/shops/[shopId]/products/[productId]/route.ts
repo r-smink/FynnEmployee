@@ -3,23 +3,61 @@ import { get, run } from '@/lib/db'
 import { deleteDesign } from '@/lib/images'
 import { getPublicOrigin } from '@/lib/public-origin'
 import { startPublish } from '@/lib/publish'
+import { PRODUCT_TYPES } from '@/lib/product-specs'
 
 export const dynamic = 'force-dynamic'
 
 interface ProductRow { id: string; status: string; design_url: string | null }
 
-// Review of Luna's designs: approve makes it a product and starts putting it on Printful and Etsy
-// (see lib/publish.ts), reject removes the image.
-// Rejected rows stay (hidden) so they still count toward Luna's daily design limit.
-export async function PATCH(request: NextRequest, { params }: { params: Promise<{ shopId: string; productId: string }> }) {
+type Params = { params: Promise<{ shopId: string; productId: string }> }
+
+// Everything about one design: the product, and how Luna made it (her task, brief, model and cost)
+export async function GET(_req: NextRequest, { params }: Params) {
   const { shopId, productId } = await params
-  const { action } = await request.json()
+  const product = get('SELECT * FROM products WHERE id = ? AND shop_id = ?', productId, shopId)
+  if (!product) return NextResponse.json({ error: 'Product niet gevonden' }, { status: 404 })
+
+  const task = get<{ title: string; description: string | null; output_data: string | null; created_at: string }>(
+    `SELECT title, description, output_data, created_at FROM tasks
+     WHERE shop_id = ? AND type = 'design_generate' AND output_data LIKE ? ORDER BY created_at DESC LIMIT 1`,
+    shopId, `%"productId":"${productId}"%`
+  )
+  let output: { brief?: { prompt?: string; concept?: string }; model?: string; cost?: number | null } = {}
+  try { output = JSON.parse(task?.output_data || '{}') } catch { /* no details */ }
+
+  return NextResponse.json({
+    product,
+    origin: task ? {
+      task: task.title,
+      assignment: task.description,
+      prompt: output.brief?.prompt ?? null,
+      model: output.model ?? null,
+      cost: output.cost ?? null,
+    } : null,
+  })
+}
+
+// Review of Luna's designs:
+// - update:  change title, description, product type, price or tags before deciding
+// - approve: makes it a product and starts putting it on Printful and Etsy (see lib/publish.ts)
+// - reject:  removes the image. Rejected rows stay (hidden) so they still count toward Luna's daily limit.
+export async function PATCH(request: NextRequest, { params }: Params) {
+  const { shopId, productId } = await params
+  const body = await request.json()
+  const { action } = body
 
   const product = get<ProductRow>('SELECT id, status, design_url FROM products WHERE id = ? AND shop_id = ?', productId, shopId)
   if (!product) return NextResponse.json({ error: 'Product niet gevonden' }, { status: 404 })
   if (product.status !== 'review') return NextResponse.json({ error: 'Dit ontwerp is al beoordeeld' }, { status: 409 })
 
-  if (action === 'approve') {
+  if (action === 'update') {
+    const fields = parseEdit(body)
+    if (typeof fields === 'string') return NextResponse.json({ error: fields }, { status: 400 })
+    run(
+      `UPDATE products SET title = ?, description = ?, category = ?, price = ?, tags = ?, updated_at = datetime('now') WHERE id = ?`,
+      fields.title, fields.description, fields.category, fields.price, JSON.stringify(fields.tags), productId
+    )
+  } else if (action === 'approve') {
     run("UPDATE products SET status = 'draft', updated_at = datetime('now') WHERE id = ?", productId)
     startPublish(productId, getPublicOrigin(request))
   } else if (action === 'reject') {
@@ -30,4 +68,22 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   }
 
   return NextResponse.json(get('SELECT * FROM products WHERE id = ?', productId))
+}
+
+// The same limits Etsy uses, so what is saved here can be published as is. Returns an error message or the fields.
+function parseEdit(body: Record<string, unknown>) {
+  const title = typeof body.title === 'string' ? body.title.replace(/\s+/g, ' ').trim() : ''
+  if (!title) return 'Geef het ontwerp een titel'
+  if (title.length > 140) return 'De titel mag maximaal 140 tekens zijn'
+  const description = typeof body.description === 'string' ? body.description.trim() : ''
+  const category = typeof body.category === 'string' ? body.category : ''
+  if (!PRODUCT_TYPES.includes(category)) return `Kies een producttype: ${PRODUCT_TYPES.join(', ')}`
+  const price = Number(body.price)
+  if (!Number.isFinite(price) || price <= 0 || price > 10000) return 'Vul een prijs in tussen € 0,01 en € 10.000'
+  if (!Array.isArray(body.tags)) return 'Tags moeten een lijst zijn'
+  const tags = [...new Set(body.tags.map(t => String(t).replace(/\s+/g, ' ').trim()).filter(Boolean))]
+  if (tags.length > 13) return 'Etsy staat maximaal 13 tags toe'
+  const long = tags.find(t => t.length > 20)
+  if (long) return `Tag "${long}" is langer dan 20 tekens`
+  return { title, description, category, price: Math.round(price * 100) / 100, tags }
 }
