@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { get, run } from '@/lib/db'
-import { getGrid, getRoom, getRooms, releaseAgent } from '@/lib/rooms'
+import { run } from '@/lib/db'
+import { getGrid, getRoom, getRooms, parseAgentIds, setRoomAgents } from '@/lib/rooms'
 import { isRoomFunction, validatePlacement } from '@/lib/office'
 
 export const dynamic = 'force-dynamic'
@@ -26,20 +26,21 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     row: body.row !== undefined ? Number(body.row) : current.row,
     width: body.width !== undefined ? Number(body.width) : current.width,
     depth: body.depth !== undefined ? Number(body.depth) : current.depth,
-    agent_id: body.agent_id !== undefined ? (body.agent_id || null) : current.agent_id,
   }
 
   const error = validatePlacement(next, getRooms(shopId), getGrid(shopId))
   if (error) return NextResponse.json({ error }, { status: 400 })
-  if (next.agent_id && !get('SELECT id FROM agents WHERE id = ? AND shop_id = ?', next.agent_id, shopId)) {
-    return NextResponse.json({ error: 'Agent niet gevonden' }, { status: 400 })
+  const agentIds = parseAgentIds(body.agent_ids)
+  if (agentIds === null) return NextResponse.json({ error: 'agent_ids moet een lijst zijn' }, { status: 400 })
+  if (agentIds) {
+    const agentError = setRoomAgents(shopId, roomId, agentIds)
+    if (agentError) return NextResponse.json({ error: agentError }, { status: 400 })
   }
 
-  if (next.agent_id) releaseAgent(shopId, next.agent_id, roomId)
   run(
-    `UPDATE rooms SET name = ?, function = ?, color = ?, col = ?, row = ?, width = ?, depth = ?, agent_id = ?,
+    `UPDATE rooms SET name = ?, function = ?, color = ?, col = ?, row = ?, width = ?, depth = ?,
      updated_at = datetime('now') WHERE id = ? AND shop_id = ?`,
-    next.name, next.function, next.color, next.col, next.row, next.width, next.depth, next.agent_id, roomId, shopId
+    next.name, next.function, next.color, next.col, next.row, next.width, next.depth, roomId, shopId
   )
   return NextResponse.json(getRoom(shopId, roomId))
 }
@@ -47,5 +48,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 export async function DELETE(_req: NextRequest, { params }: Params) {
   const { shopId, roomId } = await params
   run('DELETE FROM rooms WHERE id = ? AND shop_id = ?', roomId, shopId)
+  // Its agents go back to walking the corridors
+  run('UPDATE agents SET room_id = NULL WHERE shop_id = ? AND room_id = ?', shopId, roomId)
   return NextResponse.json({ success: true })
 }

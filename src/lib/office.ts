@@ -16,7 +16,8 @@ export interface Room {
   row: number
   width: number
   depth: number
-  agent_id: string | null
+  // Agents working here; an agent works in at most one room
+  agent_ids: string[]
 }
 
 export interface OfficeGrid {

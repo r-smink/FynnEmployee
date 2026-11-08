@@ -1,7 +1,8 @@
 import { BaseAgent } from './base-agent'
-import { askAi } from '@/lib/ai'
-import { run } from '@/lib/db'
-import { checkOrders } from '@/lib/orders'
+import { isAiEnabled } from '@/lib/ai'
+import { checkOrders, msSinceLastCheck, openOrderCount } from '@/lib/orders'
+import { isEtsyConnected } from '@/integrations/etsy/client'
+import { isPrintfulConnected } from '@/integrations/printful/client'
 import type { AgentConfig, Task, SimulationStep, TaskType } from './types'
 
 export class AriaAgent extends BaseAgent {
@@ -34,36 +35,34 @@ Keep responses under 150 words. Be precise and action-oriented.`
     return `Draft an order confirmation message for: ${task.title}. Include order summary, expected timeline, and a friendly thank-you note.`
   }
 
+  // Live: only while there are real orders to send or follow, and not more often than every 2 minutes
+  hasRealWork(): boolean {
+    return isEtsyConnected() && isPrintfulConnected() && openOrderCount(this.shopId) > 0 && msSinceLastCheck() > 2 * 60_000
+  }
+
+  // Live work is the real check: send waiting orders to Printful and pass shipments on to Etsy. No AI text.
   async processWithAi(task: Task): Promise<void> {
-    // Sending orders and tracking shipments runs on its own every few minutes; Aria checks right away
-    if (task.type === 'order_fulfill' || task.type === 'order_track') {
-      this.updateProgress(task.id, 20, 'Bestellingen controleren...')
-      try {
-        const r = await checkOrders()
-        this.log(
-          r.imported + r.sent + r.shipped + r.failed === 0
-            ? 'Geen nieuwe bestellingen of verzendingen'
-            : `Bestellingen: ${r.imported} nieuw, ${r.sent} naar Printful, ${r.shipped} verzonden, ${r.failed} fout`,
-          r.failed ? 'warning' : 'info', task.id
-        )
-      } catch (err) {
-        this.log(`Bestellingen controleren lukte niet: ${err instanceof Error ? err.message : err}`, 'warning', task.id)
-      }
-      this.updateProgress(task.id, 70, 'Bestellingen gecontroleerd')
-    }
-
-    // ── AI summary/confirmation ───────────────────────────
-    this.updateProgress(task.id, 80, 'Generating summary...')
-    const result = await askAi(this.getEffectiveSystemPrompt(), this.getTaskPrompt(task), { model: this.model })
-    run('UPDATE tasks SET output_data = ? WHERE id = ?', JSON.stringify({ aiResponse: result }), task.id)
-    const preview = result.length > 120 ? result.substring(0, 120) + '...' : result
-    this.log(`AI: ${preview}`, 'info', task.id)
-
-    this.updateProgress(task.id, 95, 'Finalizing...')
-    await new Promise(r => setTimeout(r, 500))
+    this.updateProgress(task.id, 20, 'Bestellingen controleren...')
+    const r = await checkOrders()
+    this.log(
+      r.sent + r.shipped + r.failed === 0
+        ? 'Nog niets veranderd bij Printful'
+        : `${r.sent} naar Printful gestuurd, ${r.shipped} verzonden${r.failed ? `, ${r.failed} met een fout (zie Bestellingen > Fouten)` : ''}`,
+      r.failed ? 'warning' : 'info', task.id
+    )
+    this.updateProgress(task.id, 95, 'Bestellingen gecontroleerd')
   }
 
   generateTask(): { type: TaskType; title: string; description: string } {
+    if (isAiEnabled()) {
+      const open = openOrderCount(this.shopId)
+      return {
+        type: 'order_track',
+        title: `${open} open bestelling${open === 1 ? '' : 'en'} bijwerken`,
+        description: 'Wachtende bestellingen naar Printful sturen en verzendingen doorgeven aan Etsy',
+      }
+    }
+    // Demo mode: made-up orders, clearly shown as demo
     const types: TaskType[] = ['order_fulfill', 'order_track', 'order_confirm']
     const type = types[Math.floor(Math.random() * types.length)]
     const orderNum = this.orderNum()

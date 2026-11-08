@@ -33,6 +33,12 @@ Keep responses under 150 words. Sound human and caring, not robotic.`
     return `Draft a follow-up message for: ${task.title}. Check in on their previous ${task.description} inquiry. Be warm and proactive.`
   }
 
+  // Live: Etsy has no API for buyer messages, so there are no real customer questions to answer.
+  // Rex stays idle instead of replying to made-up customers.
+  hasRealWork(): boolean {
+    return false
+  }
+
   generateTask(): { type: TaskType; title: string; description: string } {
     const topic = CUSTOMER_TOPICS[Math.floor(Math.random() * CUSTOMER_TOPICS.length)]
     const types: TaskType[] = ['support_reply', 'support_review', 'support_followup']

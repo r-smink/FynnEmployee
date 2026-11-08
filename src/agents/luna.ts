@@ -1,6 +1,6 @@
 import { v4 as uuid } from 'uuid'
 import { BaseAgent } from './base-agent'
-import { askAi } from '@/lib/ai'
+import { askAi, isAiEnabled } from '@/lib/ai'
 import { get, run } from '@/lib/db'
 import {
   generateImage, checkDesign, saveDesign, getImageModel, getDailyDesignLimit, imageModelProblem, MAX_DESIGNS_IN_REVIEW,
@@ -117,6 +117,11 @@ Keep responses under 200 words. Be creative and market-aware.`
     this.updateProgress(task.id, 95, 'Klaar voor beoordeling')
   }
 
+  // Live: only when she may draw a new design (daily limit, review queue). No text-only briefs in between.
+  hasRealWork(): boolean {
+    return this.designBlockReason() === null
+  }
+
   // Why no image may be made right now, or null when Luna can draw
   private designBlockReason(): string | null {
     const limit = getDailyDesignLimit()
@@ -167,7 +172,7 @@ Reply with JSON only:
     const picked = pickTheme(this.shopId)
     const theme = picked?.name ?? FALLBACK_THEME
     const product = PRODUCT_TYPES[Math.floor(Math.random() * PRODUCT_TYPES.length)]
-    const types: TaskType[] = ['design_generate', 'design_curate', 'design_trending']
+    const types: TaskType[] = isAiEnabled() ? ['design_generate'] : ['design_generate', 'design_curate', 'design_trending']
     const type = types[Math.floor(Math.random() * types.length)]
 
     const titles: Record<string, string> = {
