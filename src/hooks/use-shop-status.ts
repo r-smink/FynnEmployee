@@ -7,6 +7,8 @@ export interface ShopStatus {
   live: boolean
   review: number
   newOrders: number
+  ordersToConfirm: number
+  orderErrors: number
   approved: number
   publishFailed: number
   onEtsy: number

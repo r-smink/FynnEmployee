@@ -1,22 +1,8 @@
 import { BaseAgent } from './base-agent'
 import { askAi } from '@/lib/ai'
-import { run, all, get } from '@/lib/db'
-import { isEtsyConnected, getReceipts } from '@/integrations/etsy/client'
-import { isPrintfulConnected, createOrder, confirmOrder, getOrder, buildOrderFromEtsy } from '@/integrations/printful/client'
+import { run } from '@/lib/db'
+import { checkOrders } from '@/lib/orders'
 import type { AgentConfig, Task, SimulationStep, TaskType } from './types'
-import { v4 as uuid } from 'uuid'
-
-interface DbOrder {
-  id: string
-  etsy_order_id: string | null
-  customer_name: string
-  customer_email: string
-  total_price: number
-  status: string
-  fulfillment_status: string
-  fulfillment_id: string | null
-  product_id: string | null
-}
 
 export class AriaAgent extends BaseAgent {
   constructor(config: AgentConfig) {
@@ -49,117 +35,24 @@ Keep responses under 150 words. Be precise and action-oriented.`
   }
 
   async processWithAi(task: Task): Promise<void> {
-    const etsy = isEtsyConnected()
-    const printful = isPrintfulConnected()
-
-    // ── Step 1: Sync Etsy orders if connected ──────────────
-    if (etsy && task.type === 'order_fulfill') {
-      this.log('Checking Etsy for new orders...', 'thinking', task.id)
-      this.updateProgress(task.id, 10, 'Syncing Etsy orders...')
-
+    // Sending orders and tracking shipments runs on its own every few minutes; Aria checks right away
+    if (task.type === 'order_fulfill' || task.type === 'order_track') {
+      this.updateProgress(task.id, 20, 'Bestellingen controleren...')
       try {
-        const receipts = await getReceipts('open', 10)
-        if (receipts.results.length > 0) {
-          this.log(`Found ${receipts.results.length} open orders on Etsy`, 'info', task.id)
-
-          for (const receipt of receipts.results) {
-            const existing = all('SELECT id FROM orders WHERE etsy_order_id = ? AND shop_id = ?', String(receipt.order_id), this.shopId)
-            if (existing.length === 0) {
-              const total = receipt.grandtotal.amount / receipt.grandtotal.divisor
-              const orderId = uuid()
-              run(
-                `INSERT INTO orders (id, shop_id, etsy_order_id, customer_name, customer_email, total_price, status, quantity)
-                 VALUES (?, ?, ?, ?, ?, ?, 'new', ?)`,
-                orderId, this.shopId, String(receipt.order_id), receipt.name, receipt.buyer_email, total,
-                receipt.transactions.reduce((sum: number, t: { quantity: number }) => sum + t.quantity, 0)
-              )
-              this.log(`Imported order from ${receipt.name} ($${total.toFixed(2)})`, 'success', task.id)
-            }
-          }
-        } else {
-          this.log('No new Etsy orders', 'info', task.id)
-        }
-      } catch (err) {
-        this.log(`Etsy sync: ${err}`, 'warning', task.id)
-      }
-    }
-
-    // ── Step 2: Submit unfulfilled orders to Printful ──────
-    if (printful && task.type === 'order_fulfill') {
-      this.updateProgress(task.id, 40, 'Processing orders via Printful...')
-
-      const pendingOrders = all<DbOrder>(
-        "SELECT * FROM orders WHERE shop_id = ? AND status = 'new' AND fulfillment_id IS NULL",
-        this.shopId
-      )
-
-      if (pendingOrders.length > 0) {
-        // Sending orders to Printful (which costs money) isn't built yet; orders stay 'new'
-        // so they keep showing as waiting instead of looking handled
+        const r = await checkOrders()
         this.log(
-          `${pendingOrders.length} order(s) wachten. Automatisch naar Printful sturen is nog niet gebouwd: maak ze zelf aan in Printful.`,
-          'warning', task.id
+          r.imported + r.sent + r.shipped + r.failed === 0
+            ? 'Geen nieuwe bestellingen of verzendingen'
+            : `Bestellingen: ${r.imported} nieuw, ${r.sent} naar Printful, ${r.shipped} verzonden, ${r.failed} fout`,
+          r.failed ? 'warning' : 'info', task.id
         )
-      } else {
-        this.log('No pending orders to fulfill', 'info', task.id)
+      } catch (err) {
+        this.log(`Bestellingen controleren lukte niet: ${err instanceof Error ? err.message : err}`, 'warning', task.id)
       }
-
-      this.updateProgress(task.id, 60, 'Checking fulfillment status...')
+      this.updateProgress(task.id, 70, 'Bestellingen gecontroleerd')
     }
 
-    // ── Step 3: Track existing Printful orders ────────────
-    if (printful && task.type === 'order_track') {
-      this.updateProgress(task.id, 30, 'Checking Printful order status...')
-
-      const processingOrders = all<DbOrder>(
-        "SELECT * FROM orders WHERE shop_id = ? AND fulfillment_id IS NOT NULL AND status != 'fulfilled' LIMIT 10",
-        this.shopId
-      )
-
-      if (processingOrders.length > 0) {
-        this.log(`Tracking ${processingOrders.length} orders...`, 'info', task.id)
-
-        for (const order of processingOrders) {
-          if (order.fulfillment_id) {
-            try {
-              const pfOrder = await getOrder(parseInt(order.fulfillment_id))
-              const statusMap: Record<string, string> = {
-                draft: 'pending', pending: 'submitted', inprocess: 'in_production',
-                onhold: 'in_production', partial: 'in_production', fulfilled: 'delivered',
-              }
-              const newStatus = statusMap[pfOrder.status] || pfOrder.status
-
-              run(
-                `UPDATE orders SET fulfillment_status = ?, updated_at = datetime('now') WHERE id = ? AND shop_id = ?`,
-                newStatus, order.id, this.shopId
-              )
-
-              if (pfOrder.shipments?.length > 0) {
-                const shipment = pfOrder.shipments[0]
-                run(
-                  `UPDATE orders SET tracking_number = ?, fulfillment_status = 'shipped' WHERE id = ? AND shop_id = ?`,
-                  shipment.tracking_number, order.id, this.shopId
-                )
-                this.log(
-                  `Order ${order.id.substring(0, 8)} shipped via ${shipment.carrier} - ${shipment.tracking_number}`,
-                  'success', task.id
-                )
-              } else {
-                this.log(`Order ${order.id.substring(0, 8)}: ${pfOrder.status}`, 'info', task.id)
-              }
-            } catch (err) {
-              this.log(`Tracking error for ${order.id.substring(0, 8)}: ${err}`, 'warning', task.id)
-            }
-          }
-        }
-      } else {
-        this.log('No orders to track', 'info', task.id)
-      }
-
-      this.updateProgress(task.id, 70, 'Tracking complete')
-    }
-
-    // ── Step 4: AI summary/confirmation ───────────────────
+    // ── AI summary/confirmation ───────────────────────────
     this.updateProgress(task.id, 80, 'Generating summary...')
     const result = await askAi(this.getEffectiveSystemPrompt(), this.getTaskPrompt(task), { model: this.model })
     run('UPDATE tasks SET output_data = ? WHERE id = ?', JSON.stringify({ aiResponse: result }), task.id)

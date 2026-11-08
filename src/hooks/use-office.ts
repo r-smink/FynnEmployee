@@ -36,10 +36,11 @@ export function useOffice(shopId: string) {
         body: body ? JSON.stringify(body) : undefined,
       })
       const data = await res.json().catch(() => ({}))
-      if (!res.ok) return data.error || 'Opslaan mislukt'
+      // Refresh either way: on an error this undoes an optimistic change
       await refresh()
-      return null
+      return res.ok ? null : data.error || 'Opslaan mislukt'
     } catch {
+      await refresh()
       return 'Geen verbinding met de server'
     }
   }
@@ -47,8 +48,15 @@ export function useOffice(shopId: string) {
   return {
     grid, rooms, loading, refresh,
     createRoom: (input: RoomInput) => send(`/api/shops/${shopId}/rooms`, 'POST', input),
-    updateRoom: (roomId: string, input: RoomInput) => send(`/api/shops/${shopId}/rooms/${roomId}`, 'PATCH', input),
+    // Shown right away so a dragged room stays where it was dropped while it saves
+    updateRoom: (roomId: string, input: RoomInput) => {
+      setRooms(rs => rs.map(r => (r.id === roomId ? { ...r, ...input } : r)))
+      return send(`/api/shops/${shopId}/rooms/${roomId}`, 'PATCH', input)
+    },
     deleteRoom: (roomId: string) => send(`/api/shops/${shopId}/rooms/${roomId}`, 'DELETE'),
-    resizeGrid: (next: OfficeGrid) => send(`/api/shops/${shopId}/rooms`, 'PATCH', next),
+    resizeGrid: (next: OfficeGrid) => {
+      setGrid(next)
+      return send(`/api/shops/${shopId}/rooms`, 'PATCH', next)
+    },
   }
 }

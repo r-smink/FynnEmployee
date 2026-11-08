@@ -89,6 +89,16 @@ function migrate(database: Database.Database) {
   addColumn(database, 'products', 'publish_step', 'TEXT')
   addColumn(database, 'products', 'publish_error', 'TEXT')
   addColumn(database, 'products', 'fulfillment', 'TEXT')
+
+  // Sending Etsy orders to Printful: what was ordered, the last error (shown under Fouten),
+  // and the shipment that goes back to Etsy
+  addColumn(database, 'orders', 'product_title', 'TEXT')
+  addColumn(database, 'orders', 'fulfill_error', 'TEXT')
+  addColumn(database, 'orders', 'carrier', 'TEXT')
+  addColumn(database, 'orders', 'tracking_url', 'TEXT')
+  addColumn(database, 'orders', 'tracking_sent', 'INTEGER DEFAULT 0')
+  // Older versions read a receipt field Etsy doesn't send, so imported orders got the id "undefined"
+  database.exec("DELETE FROM orders WHERE etsy_order_id = 'undefined' AND fulfillment_id IS NULL")
 }
 migrate(db)
 
