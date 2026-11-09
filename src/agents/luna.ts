@@ -126,10 +126,10 @@ Keep responses under 200 words. Be creative and market-aware.`
   private designBlockReason(): string | null {
     const limit = getDailyDesignLimit()
     if (limit === 0) return 'Beeldontwerpen staat uit in Instellingen.'
-    // Every generated image counts, including rejected ones (they lose their file but keep the row)
+    // Every generated image counts, including rejected and deleted ones (they lose their file but keep the row)
     const today = get<{ n: number }>(
       `SELECT COUNT(*) AS n FROM products
-       WHERE shop_id = ? AND created_by = 'luna' AND (design_url IS NOT NULL OR status = 'rejected')
+       WHERE shop_id = ? AND created_by = 'luna' AND (design_url IS NOT NULL OR status IN ('rejected', 'deleted'))
          AND created_at >= datetime('now', '-1 day')`,
       this.shopId
     )!.n

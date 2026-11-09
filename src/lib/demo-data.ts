@@ -11,7 +11,7 @@ export function purgeDemoData(): number {
   return db.transaction(() => {
     const removed = run('DELETE FROM tasks WHERE demo = 1').changes
     run('DELETE FROM activity_log WHERE demo = 1')
-    run("DELETE FROM products WHERE etsy_listing_id IS NULL AND design_url IS NULL AND status != 'rejected'")
+    run("DELETE FROM products WHERE etsy_listing_id IS NULL AND design_url IS NULL AND status NOT IN ('rejected', 'deleted')")
     run('DELETE FROM orders WHERE etsy_order_id IS NULL')
     run(`UPDATE agents SET
       tasks_completed = (SELECT COUNT(*) FROM tasks t WHERE t.agent_id = agents.id AND t.shop_id = agents.shop_id AND t.status = 'completed'),

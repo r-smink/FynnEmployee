@@ -181,6 +181,8 @@ export async function etsyFetch<T = unknown>(
     throw new Error(`Etsy API error (${response.status}): ${err}`)
   }
 
+  // DELETE answers 204 without a body
+  if (response.status === 204) return undefined as T
   return response.json()
 }
 
@@ -260,6 +262,17 @@ export async function setListingState(listingId: number, state: 'active' | 'inac
     method: 'PATCH',
     body: form({ state }),
   })
+}
+
+// Removes a draft or live listing from Etsy for good; false when Etsy no longer has it
+export async function deleteListing(listingId: number): Promise<boolean> {
+  try {
+    await etsyFetch(`/application/listings/${listingId}`, { method: 'DELETE' })
+    return true
+  } catch (err) {
+    if (err instanceof Error && err.message.includes('(404)')) return false
+    throw err
+  }
 }
 
 export async function uploadListingImage(listingId: number, image: Blob, filename: string, rank: number, altText?: string) {

@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { get, run } from '@/lib/db'
 import { deleteDesign } from '@/lib/images'
 import { getPublicOrigin } from '@/lib/public-origin'
-import { startPublish } from '@/lib/publish'
+import { startPublish, isPublishing } from '@/lib/publish'
+import { deletePrintFiles } from '@/lib/print-files'
+import { isEtsyConnected, deleteListing } from '@/integrations/etsy/client'
 import { PRODUCT_TYPES } from '@/lib/product-specs'
 
 export const dynamic = 'force-dynamic'
@@ -68,6 +70,42 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   }
 
   return NextResponse.json(get('SELECT * FROM products WHERE id = ?', productId))
+}
+
+// Deletes an approved product: its Etsy listing (draft or live) and its files.
+// The row stays (hidden, status 'deleted') because open Etsy orders still need its Printful variants and print files,
+// and it keeps counting toward Luna's daily limit.
+export async function DELETE(_req: NextRequest, { params }: Params) {
+  const { shopId, productId } = await params
+  const product = get<ProductRow & { title: string; etsy_listing_id: string | null }>(
+    'SELECT id, title, status, design_url, etsy_listing_id FROM products WHERE id = ? AND shop_id = ?', productId, shopId
+  )
+  if (!product || product.status === 'deleted') return NextResponse.json({ error: 'Product niet gevonden' }, { status: 404 })
+  if (product.status === 'review') return NextResponse.json({ error: 'Keur dit ontwerp af in plaats van het te verwijderen' }, { status: 409 })
+  if (isPublishing(productId)) {
+    return NextResponse.json({ error: 'Dit product wordt nu op Etsy gezet. Wacht tot dat klaar is en verwijder het dan.' }, { status: 409 })
+  }
+
+  if (product.etsy_listing_id) {
+    if (!isEtsyConnected()) {
+      return NextResponse.json({ error: 'Etsy is niet gekoppeld, dus de listing kan niet worden verwijderd. Koppel Etsy en probeer opnieuw.' }, { status: 409 })
+    }
+    try {
+      await deleteListing(Number(product.etsy_listing_id))
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      return NextResponse.json({ error: `Verwijderen op Etsy mislukte: ${msg}` }, { status: 502 })
+    }
+  }
+
+  if (product.design_url) deleteDesign(product.design_url.split('/').pop()!)
+  deletePrintFiles(productId)
+  run(
+    `UPDATE products SET status = 'deleted', publish_status = NULL, publish_step = NULL, publish_error = NULL,
+      design_url = NULL, thumbnail_url = NULL, updated_at = datetime('now') WHERE id = ?`,
+    productId
+  )
+  return NextResponse.json({ ok: true })
 }
 
 // The same limits Etsy uses, so what is saved here can be published as is. Returns an error message or the fields.

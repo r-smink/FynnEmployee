@@ -1,7 +1,7 @@
 'use client'
 
 import { use, useState, useEffect, useCallback } from 'react'
-import { Search, TrendingUp, Package, Shirt, ShoppingBag, Coffee, Smartphone, Image as ImageIcon, Sparkles, Home, Loader2, ExternalLink, AlertTriangle, RotateCw } from 'lucide-react'
+import { Search, TrendingUp, Package, Shirt, ShoppingBag, Coffee, Smartphone, Image as ImageIcon, Sparkles, Home, Loader2, ExternalLink, AlertTriangle, RotateCw, Trash2 } from 'lucide-react'
 import { Topbar } from '@/components/layout/topbar'
 import { PageBody } from '@/components/layout/app-shell'
 import { euro } from '@/lib/labels'
@@ -118,6 +118,54 @@ function PublishState({ shopId, product, onChange }: { shopId: string; product: 
   )
 }
 
+// Removes the product here and its listing on Etsy; asks once more inside the card before doing it
+function DeleteProduct({ shopId, product, onChange }: { shopId: string; product: Product; onChange: () => void }) {
+  const [confirming, setConfirming] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  if (product.publish_status === 'publishing') return null
+
+  const remove = async () => {
+    setBusy(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/shops/${shopId}/products/${product.id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Verwijderen mislukt')
+      onChange()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Verwijderen mislukt')
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="mt-3 text-[11.5px]">
+      {error && <p className="px-2.5 py-2 rounded-lg mb-2" style={{ background: 'var(--fyn-danger-light)', color: '#b91c1c' }}>{error}</p>}
+      {confirming ? (
+        <div className="px-2.5 py-2 rounded-lg" style={{ background: 'var(--fyn-danger-light)', color: '#b91c1c' }}>
+          <p className="mb-2 leading-[1.45]">
+            {product.etsy_listing_id
+              ? 'Dit verwijdert het product hier én de listing op Etsy. Dat kan niet ongedaan worden.'
+              : 'Dit verwijdert het product. Dat kan niet ongedaan worden.'}
+          </p>
+          <div className="flex gap-2">
+            <button className="fynn-btn-ghost" style={{ height: 30, fontSize: 12, color: '#b91c1c' }} disabled={busy} onClick={remove}>
+              {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />} Ja, verwijderen
+            </button>
+            <button className="fynn-btn-ghost" style={{ height: 30, fontSize: 12 }} disabled={busy} onClick={() => setConfirming(false)}>
+              Annuleren
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button className="inline-flex items-center gap-1.5 font-semibold" style={{ color: 'var(--text-s)' }} onClick={() => setConfirming(true)}>
+          <Trash2 className="w-3.5 h-3.5" /> Verwijderen
+        </button>
+      )}
+    </div>
+  )
+}
+
 function parseTags(raw: string): string[] {
   try { return JSON.parse(raw || '[]') } catch { return [] }
 }
@@ -145,9 +193,9 @@ export default function ProductsPage({ params }: { params: Promise<{ shopId: str
     }
   }, [load])
 
-  // Designs awaiting review get their own section; rejected ones are hidden
+  // Designs awaiting review get their own section; rejected and deleted ones are hidden
   const toReview = realProducts.filter(p => p.status === 'review')
-  const catalog = realProducts.filter(p => p.status !== 'review' && p.status !== 'rejected')
+  const catalog = realProducts.filter(p => !['review', 'rejected', 'deleted'].includes(p.status))
 
   // Example products only in demo mode, and only while there are no real ones
   const demo = showDemoData && catalog.length === 0 && toReview.length === 0
@@ -226,6 +274,7 @@ export default function ProductsPage({ params }: { params: Promise<{ shopId: str
                         {p.sales_count} verkocht
                       </div>
                     </div>
+                    {!demo && <DeleteProduct shopId={shopId} product={p} onChange={load} />}
                   </div>
                 </div>
               )
