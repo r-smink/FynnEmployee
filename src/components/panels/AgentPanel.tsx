@@ -6,6 +6,7 @@ import type { AgentData } from '@/hooks/use-agents'
 import { AgentAvatar, AgentStatusPill } from '@/components/dashboard/agent-card'
 import { ACTIVITY_COLORS, agentRole } from '@/lib/labels'
 import { AgentToggle } from '@/components/agents/AgentToggle'
+import { AgentAssignments } from '@/components/agents/AgentAssignments'
 
 export function AgentPanel({ agent, roomName }: { agent: AgentData; roomName?: string | null }) {
   return (
@@ -57,6 +58,8 @@ export function AgentPanel({ agent, roomName }: { agent: AgentData; roomName?: s
         <span className="text-[11.5px] flex-none" style={{ color: 'var(--text-m)' }}>AI-model</span>
         <code className="text-[12px] truncate" style={{ color: agent.model ? 'var(--fyn-blue)' : 'var(--text-s)' }}>{agent.model || 'standaard'}</code>
       </div>
+
+      <AgentAssignments agent={agent} />
 
       <div>
         <h4 className="text-xs font-bold uppercase tracking-[.05em] mb-2" style={{ color: 'var(--text-m)' }}>Recente activiteit</h4>

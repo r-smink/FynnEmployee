@@ -1,4 +1,6 @@
 import { BaseAgent } from './base-agent'
+import { get } from '@/lib/db'
+import { publishAndWait } from '@/lib/publish'
 import type { AgentConfig, Task, SimulationStep, TaskType } from './types'
 
 const LISTING_ACTIONS = [
@@ -37,6 +39,23 @@ Keep responses under 250 words. Focus on search visibility and conversion.`
   // He doesn't invent listings to write about in between.
   hasRealWork(): boolean {
     return false
+  }
+
+  // A product that didn't reach Etsy: try again from the step where it stopped
+  async processWithAi(task: Task): Promise<void> {
+    if (task.type !== 'fix_publish') return super.processWithAi(task)
+    const { productId } = JSON.parse(task.input_data || '{}') as { productId?: string }
+    const product = get<{ title: string; status: string; publish_status: string | null }>(
+      'SELECT title, status, publish_status FROM products WHERE id = ? AND shop_id = ?', productId, this.shopId
+    )
+    if (!product || product.status === 'deleted') throw new Error('Dit product bestaat niet meer')
+    if (product.publish_status === 'etsy_draft' || product.publish_status === 'etsy_live') {
+      this.log(`"${product.title}" staat al op Etsy`, 'info', task.id)
+      return
+    }
+    this.updateProgress(task.id, 20, 'Opnieuw naar Printful en Etsy...')
+    await publishAndWait(productId!)
+    this.updateProgress(task.id, 95, 'Staat op Etsy')
   }
 
   generateTask(): { type: TaskType; title: string; description: string } {

@@ -1,4 +1,5 @@
 import { get, run, all } from './db'
+import { PRODUCT_TYPES } from './product-specs'
 
 // Shop-wide instructions that are added to the system prompt of every agent in the shop
 export const SHOP_PROMPT_KEY = 'shop_prompt'
@@ -23,4 +24,21 @@ export function getAllShopSettings(shopId: string): Record<string, string> {
   const result: Record<string, string> = {}
   for (const row of rows) result[row.key] = row.value
   return result
+}
+
+// Product types the owner switched off for now (e.g. no stickers this month); Luna only designs the others
+export const DISABLED_TYPES_KEY = 'disabled_product_types'
+
+export function disabledProductTypes(shopId: string): string[] {
+  try {
+    const list = JSON.parse(getShopSetting(shopId, DISABLED_TYPES_KEY) || '[]')
+    return Array.isArray(list) ? list.filter((t): t is string => PRODUCT_TYPES.includes(t)) : []
+  } catch {
+    return []
+  }
+}
+
+export function enabledProductTypes(shopId: string): string[] {
+  const off = disabledProductTypes(shopId)
+  return PRODUCT_TYPES.filter(t => !off.includes(t))
 }

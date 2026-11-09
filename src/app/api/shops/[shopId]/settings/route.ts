@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSetting, setSetting, getAiMode, hasAiKey, isAiEnabled } from '@/lib/ai'
-import { getShopSetting } from '@/lib/shop-settings'
+import { getShopSetting, setShopSetting, disabledProductTypes, DISABLED_TYPES_KEY } from '@/lib/shop-settings'
+import { PRODUCT_TYPES } from '@/lib/product-specs'
 import { purgeDemoDataIfLive } from '@/lib/demo-data'
 
 export const dynamic = 'force-dynamic'
@@ -32,6 +33,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ sho
   settings['ai_enabled'] = isAiEnabled() ? 'true' : 'false'
   settings['ai_mode'] = getAiMode()
   settings['has_api_key'] = hasAiKey() ? 'true' : 'false'
+  settings[DISABLED_TYPES_KEY] = JSON.stringify(disabledProductTypes(shopId))
 
   return NextResponse.json(settings)
 }
@@ -46,6 +48,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         setSetting(key, value.trim())
       }
     }
+  }
+  // Product types switched off for this shop, as a list
+  if (Array.isArray(body[DISABLED_TYPES_KEY])) {
+    const off = body[DISABLED_TYPES_KEY].filter((t: unknown): t is string => typeof t === 'string' && PRODUCT_TYPES.includes(t))
+    setShopSetting(shopId, DISABLED_TYPES_KEY, JSON.stringify([...new Set(off)]))
   }
   // Saving the OpenRouter key can be what turns AI Live on
   purgeDemoDataIfLive()

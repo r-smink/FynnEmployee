@@ -49,7 +49,7 @@ Keep responses under 200 words. Be decisive and leadership-oriented.`
     return [
       'Figures for this shop right now:',
       `- Designs waiting for the owner to review: ${n("SELECT COUNT(*) AS n FROM products WHERE shop_id = ? AND status = 'review'")}`,
-      `- Approved designs failed to reach Etsy: ${n("SELECT COUNT(*) AS n FROM products WHERE shop_id = ? AND publish_status = 'failed'")}`,
+      `- Approved designs failed to reach Etsy: ${n("SELECT COUNT(*) AS n FROM products WHERE shop_id = ? AND publish_status = 'failed' AND error_dismissed = 0")}`,
       `- Products on Etsy (draft or live): ${n("SELECT COUNT(*) AS n FROM products WHERE shop_id = ? AND publish_status IN ('etsy_draft', 'etsy_live')")}`,
       `- Orders in the last 7 days: ${n("SELECT COUNT(*) AS n FROM orders WHERE shop_id = ? AND created_at >= datetime('now', '-7 days')")}`,
       `- Printful drafts waiting for the owner to confirm: ${n("SELECT COUNT(*) AS n FROM orders WHERE shop_id = ? AND fulfillment_status = 'draft' AND status = 'processing'")}`,

@@ -12,6 +12,8 @@ export type TaskType =
   | 'analytics_report' | 'analytics_trend' | 'analytics_competitor'
   | 'manager_delegate' | 'manager_review' | 'manager_optimize'
   | 'custom_task'
+  // Queued with priority: an assignment from the owner, or putting right something that failed
+  | 'owner_task' | 'fix_publish' | 'fix_order'
 
 export interface AgentConfig {
   id: string

@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { formatDistanceToNow } from 'date-fns'
 import { nl } from 'date-fns/locale'
-import { Bell, Activity, Store, AlertTriangle, ChevronRight } from 'lucide-react'
+import { Bell, Activity, Store, AlertTriangle, ChevronRight, X } from 'lucide-react'
 import { useShopStatus } from '@/hooks/use-shop-status'
 import { parseDbDate } from '@/lib/revenue'
 
@@ -40,10 +40,12 @@ function Row({ href, label, value, accent }: { href?: string; label: string; val
 
 // AI Live only: what waits for the owner, what the agents really did, and how far products got
 export function StatusOverview({ shopId }: { shopId: string }) {
-  const { status } = useShopStatus(shopId)
+  const { status, refresh } = useShopStatus(shopId)
   if (!status?.live) return null
 
-  const waiting = status.review + status.newOrders + status.publishFailed + status.ordersToConfirm + status.orderErrors
+  const dismissError = () => fetch(`/api/shops/${shopId}/status`, { method: 'DELETE' }).then(refresh).catch(() => {})
+
+  const waiting = status.review + status.newOrders + status.publishFailed + status.ordersToConfirm + status.orderErrors + (status.taskErrors ?? 0)
   const { done, failed, designs } = status.last24h
 
   return (
@@ -55,6 +57,10 @@ export function StatusOverview({ shopId }: { shopId: string }) {
           <span className="min-w-0 break-words">
             <b>Laatste fout{status.lastError.agent ? ` bij ${status.lastError.agent}` : ''}</b> ({ago(status.lastError.created_at)}): {status.lastError.message}
           </span>
+          <button onClick={dismissError} title="Wegklikken" aria-label="Foutmelding wegklikken"
+            className="ml-auto flex-none p-0.5 rounded cursor-pointer" style={{ color: '#b91c1c' }}>
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
 
@@ -65,9 +71,10 @@ export function StatusOverview({ shopId }: { shopId: string }) {
           ) : (
             <>
               {status.review > 0 && <Row href={`/shops/${shopId}/products`} label="Ontwerpen beoordelen" value={status.review} accent="#d97706" />}
-              {status.publishFailed > 0 && <Row href={`/shops/${shopId}/products`} label="Niet gelukt naar Etsy" value={status.publishFailed} accent="#dc2626" />}
+              {status.publishFailed > 0 && <Row href={`/shops/${shopId}/errors`} label="Niet gelukt naar Etsy" value={status.publishFailed} accent="#dc2626" />}
               {status.ordersToConfirm > 0 && <Row href={`/shops/${shopId}/orders`} label="Bestellingen bevestigen" value={status.ordersToConfirm} accent="#d97706" />}
-              {status.orderErrors > 0 && <Row href={`/shops/${shopId}/orders?tab=fouten`} label="Bestellingen met een fout" value={status.orderErrors} accent="#dc2626" />}
+              {status.orderErrors > 0 && <Row href={`/shops/${shopId}/errors`} label="Bestellingen met een fout" value={status.orderErrors} accent="#dc2626" />}
+              {(status.taskErrors ?? 0) > 0 && <Row href={`/shops/${shopId}/errors`} label="Mislukte taken van agents" value={status.taskErrors} accent="#dc2626" />}
               {status.newOrders > 0 && <Row href={`/shops/${shopId}/orders`} label="Zelf in Printful aanmaken" value={status.newOrders} accent="#d97706" />}
             </>
           )}

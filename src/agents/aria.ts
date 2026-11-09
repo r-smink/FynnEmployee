@@ -1,6 +1,7 @@
 import { BaseAgent } from './base-agent'
 import { isAiEnabled } from '@/lib/ai'
-import { checkOrders, msSinceLastCheck, openOrderCount } from '@/lib/orders'
+import { checkOrders, msSinceLastCheck, openOrderCount, retryOrder, type OrderRow } from '@/lib/orders'
+import { get } from '@/lib/db'
 import { isEtsyConnected } from '@/integrations/etsy/client'
 import { isPrintfulConnected } from '@/integrations/printful/client'
 import type { AgentConfig, Task, SimulationStep, TaskType } from './types'
@@ -42,6 +43,8 @@ Keep responses under 150 words. Be precise and action-oriented.`
 
   // Live work is the real check: send waiting orders to Printful and pass shipments on to Etsy. No AI text.
   async processWithAi(task: Task): Promise<void> {
+    if (task.type === 'owner_task') return super.processWithAi(task)
+    if (task.type === 'fix_order') return this.fixOrder(task)
     this.updateProgress(task.id, 20, 'Bestellingen controleren...')
     const r = await checkOrders()
     this.log(
@@ -103,5 +106,31 @@ Keep responses under 150 words. Be precise and action-oriented.`
       { message: 'Including tracking details and ETA...', type: 'info', progress: 60, durationMs: 1500 },
       { message: 'Confirmation sent to customer', type: 'success', progress: 100, durationMs: 1000 },
     ]
+  }
+
+  // Sends an order that failed to Printful again; the task fails with Printful's reason when it still doesn't work
+  private async fixOrder(task: Task): Promise<void> {
+    const { orderId } = JSON.parse(task.input_data || '{}') as { orderId?: string }
+    const find = () => get<OrderRow>('SELECT * FROM orders WHERE id = ? AND shop_id = ?', orderId, this.shopId)
+    const order = find()
+    if (!order) throw new Error('Deze bestelling bestaat niet meer')
+    if (!order.fulfill_error) {
+      this.log(`Bestelling ${order.etsy_order_id} heeft geen fout meer`, 'info', task.id)
+      return
+    }
+
+    this.log(`Probeert bestelling ${order.etsy_order_id} opnieuw naar Printful te sturen...`, 'thinking', task.id)
+    this.updateProgress(task.id, 30, 'Opnieuw naar Printful...')
+    retryOrder(order, false)
+    await checkOrders()
+    // A check that was already running may have started before the retry; then one more
+    let after = find()
+    if (after && !after.fulfill_error && !after.fulfillment_id && after.status === 'new') {
+      await checkOrders()
+      after = find()
+    }
+    if (after?.fulfill_error) throw new Error(after.fulfill_error)
+    this.log(`Bestelling ${order.etsy_order_id} is weer op weg`, 'success', task.id)
+    this.updateProgress(task.id, 95, 'Opgelost')
   }
 }

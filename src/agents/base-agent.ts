@@ -116,7 +116,8 @@ export abstract class BaseAgent {
 
   async processTask(task: Task): Promise<void> {
     this.currentTask = task
-    this.demoTask = !isAiEnabled()
+    // Fixes act on real orders and products, so they never run as a simulation
+    this.demoTask = !isAiEnabled() && !task.type.startsWith('fix_')
     this.setStatus('working')
 
     run('UPDATE tasks SET status = \'in_progress\', demo = ?, started_at = datetime(\'now\') WHERE id = ?', this.demoTask ? 1 : 0, task.id)
@@ -194,7 +195,8 @@ export abstract class BaseAgent {
     this.updateProgress(task.id, 30, 'Consulting AI...')
 
     const context = await this.getTaskContext(task)
-    const prompt = context ? `${this.getTaskPrompt(task)}\n\n${context}` : this.getTaskPrompt(task)
+    const base = task.type === 'owner_task' ? this.ownerTaskPrompt(task) : this.getTaskPrompt(task)
+    const prompt = context ? `${base}\n\n${context}` : base
 
     // Throws when the AI fails, so the task is marked failed instead of faking work
     const result = await askAi(this.getEffectiveSystemPrompt(), prompt, { model: this.model })
@@ -211,6 +213,12 @@ export abstract class BaseAgent {
     this.log(`AI result: ${preview}`, 'info', task.id)
     this.updateProgress(task.id, 85, 'Finalizing...')
     await new Promise(r => setTimeout(r, 500))
+  }
+
+  // An assignment the owner typed for this agent
+  protected ownerTaskPrompt(task: Task): string {
+    return `Assignment from the shop owner, to do now within your role:\n${task.description || task.title}\n\n` +
+      'Do the assignment and reply with a concrete, usable result. Write in Dutch.'
   }
 
   // Extra facts for the AI prompt (market data, themes); live mode only

@@ -14,6 +14,7 @@ import { ModelPicker } from '@/components/models/ModelPicker'
 import { useModels } from '@/hooks/use-models'
 import { ModelBrowser } from '@/components/models/ModelBrowser'
 import { DesignSettings } from '@/components/settings/DesignSettings'
+import { ProductTypeSettings } from '@/components/settings/ProductTypeSettings'
 import { agentRole } from '@/lib/labels'
 import { ShopProfileCard } from '@/components/shops/ShopProfileCard'
 
@@ -399,6 +400,7 @@ function SettingsContent({ shopId }: { shopId: string }) {
           </div>
 
           <DesignSettings />
+          <ProductTypeSettings shopId={shopId} />
 
           {/* Agent controls */}
           <div className="fynn-card p-[22px] mb-[18px]">

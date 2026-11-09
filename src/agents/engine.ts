@@ -1,10 +1,11 @@
-import { all } from '@/lib/db'
+import { all, run } from '@/lib/db'
 import { createAgentFromRecord } from './agent-factory'
 import { BaseAgent } from './base-agent'
 import type { Agent } from './types'
 import { purgeDemoDataIfLive } from '@/lib/demo-data'
 import { startOrderLoop } from '@/lib/orders'
 import { isAiEnabled } from '@/lib/ai'
+import { nextQueuedTask } from '@/lib/agent-queue'
 
 class AgentEngine {
   shops: Map<string, Map<string, BaseAgent>> = new Map()
@@ -29,7 +30,11 @@ class AgentEngine {
   startShop(shopId: string) {
     if (this.running.get(shopId)) return
     // Leftovers from demo mode or older versions must not show up as real work after a restart
-    if (this.running.size === 0) purgeDemoDataIfLive()
+    if (this.running.size === 0) {
+      purgeDemoDataIfLive()
+      // Queued work that was running when the app stopped starts over instead of looking busy forever
+      run("UPDATE tasks SET status = 'queued', progress = 0 WHERE status = 'in_progress' AND priority > 0")
+    }
     // Etsy orders go to Printful whether or not the agents work with AI
     startOrderLoop()
 
@@ -41,32 +46,51 @@ class AgentEngine {
     }
   }
 
-  private scheduleAgent(shopId: string, id: string, agent: BaseAgent) {
+  private scheduleAgent(shopId: string, id: string, agent: BaseAgent, soon = false) {
     // Manager agent (Fynn) runs less frequently
     const isManager = agent.constructor.name === 'FynnAgent'
     const minDelay = isManager ? 15000 : 8000
     const maxDelay = isManager ? 40000 : 25000
-    const delay = minDelay + Math.random() * (maxDelay - minDelay)
+    // Straight after queued work, look for the next queued task quickly
+    const delay = soon ? 1000 : minDelay + Math.random() * (maxDelay - minDelay)
 
     const timer = setTimeout(async () => {
       if (!this.running.get(shopId)) return
 
-      // In AI Live an agent only starts a task when there is real work for it
-      if (agent.enabled && agent.status === 'idle' && (!isAiEnabled() || agent.hasRealWork())) {
+      let didQueued = false
+      if (agent.enabled && agent.status === 'idle') {
         try {
-          const task = agent.createTask()
-          await agent.processTask(task)
+          // Queued work (owner assignments, fixes) goes first; otherwise in AI Live only real work
+          const queued = nextQueuedTask(shopId, id)
+          if (queued) {
+            didQueued = true
+            await agent.processTask(queued)
+          } else if (!isAiEnabled() || agent.hasRealWork()) {
+            await agent.processTask(agent.createTask())
+          }
         } catch (e) {
           console.error(`Agent ${id} (shop ${shopId}) error:`, e)
         }
       }
 
       if (this.running.get(shopId)) {
-        this.scheduleAgent(shopId, id, agent)
+        this.scheduleAgent(shopId, id, agent, didQueued)
       }
     }, delay)
 
     this.timers.push(timer)
+  }
+
+  // Starts queued work right away instead of at the agent's next turn. A busy agent picks it up when done.
+  wake(shopId: string, agentId?: string) {
+    this.startShop(shopId)
+    for (const [id, agent] of this.loadShop(shopId)) {
+      if (agentId && id !== agentId) continue
+      if (!agent.enabled || agent.status !== 'idle') continue
+      const queued = nextQueuedTask(shopId, id)
+      if (!queued) continue
+      agent.processTask(queued).catch(e => console.error(`Agent ${id} (shop ${shopId}) error:`, e))
+    }
   }
 
   stopShop(shopId: string) {

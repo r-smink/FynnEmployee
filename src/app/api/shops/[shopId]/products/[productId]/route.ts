@@ -21,7 +21,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
   const task = get<{ title: string; description: string | null; output_data: string | null; created_at: string }>(
     `SELECT title, description, output_data, created_at FROM tasks
-     WHERE shop_id = ? AND type = 'design_generate' AND output_data LIKE ? ORDER BY created_at DESC LIMIT 1`,
+     WHERE shop_id = ? AND type IN ('design_generate', 'owner_task') AND output_data LIKE ? ORDER BY created_at DESC LIMIT 1`,
     shopId, `%"productId":"${productId}"%`
   )
   let output: { brief?: { prompt?: string; concept?: string }; model?: string; cost?: number | null } = {}
@@ -43,10 +43,17 @@ export async function GET(_req: NextRequest, { params }: Params) {
 // - update:  change title, description, product type, price or tags before deciding
 // - approve: makes it a product and starts putting it on Printful and Etsy (see lib/publish.ts)
 // - reject:  removes the image. Rejected rows stay (hidden) so they still count toward Luna's daily limit.
+// - dismiss_error: hides a failed publish from Fouten; the product keeps its retry button
 export async function PATCH(request: NextRequest, { params }: Params) {
   const { shopId, productId } = await params
   const body = await request.json()
   const { action } = body
+
+  if (action === 'dismiss_error') {
+    const done = run('UPDATE products SET error_dismissed = 1 WHERE id = ? AND shop_id = ?', productId, shopId)
+    if (done.changes === 0) return NextResponse.json({ error: 'Product niet gevonden' }, { status: 404 })
+    return NextResponse.json({ ok: true })
+  }
 
   const product = get<ProductRow>('SELECT id, status, design_url FROM products WHERE id = ? AND shop_id = ?', productId, shopId)
   if (!product) return NextResponse.json({ error: 'Product niet gevonden' }, { status: 404 })

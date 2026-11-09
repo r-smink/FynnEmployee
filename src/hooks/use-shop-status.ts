@@ -11,6 +11,7 @@ export interface ShopStatus {
   orderErrors: number
   approved: number
   publishFailed: number
+  taskErrors: number
   onEtsy: number
   last24h: { done: number; failed: number; designs: number }
   lastError: { message: string; agent: string | null; created_at: string } | null

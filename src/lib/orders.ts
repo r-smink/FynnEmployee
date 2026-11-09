@@ -3,6 +3,7 @@ import { all, get, run } from './db'
 import { getSetting, setSetting } from './ai'
 import { emitAgentEvent } from './events'
 import type { Fulfillment } from './publish'
+import { autoFixEnabled, queueOrderFix } from './agent-queue'
 import {
   isEtsyConnected, getPaidReceipts, getReceipt, addReceiptTracking, type EtsyReceipt,
 } from '@/integrations/etsy/client'
@@ -275,10 +276,11 @@ export async function confirmDraft(order: OrderRow) {
   log(order.shop_id, `Bestelling ${order.etsy_order_id} is bevestigd in Printful`, 'success')
 }
 
-// Clears the error so the next check tries again; a manual order is sent through the app after all
-export function retryOrder(order: OrderRow) {
+// Clears the error so the next check tries again; a manual order is sent through the app after all.
+// When the owner does it, automatic fixes may try again after this attempt.
+export function retryOrder(order: OrderRow, byOwner = true) {
   run(
-    `UPDATE orders SET fulfill_error = NULL,
+    `UPDATE orders SET fulfill_error = NULL,${byOwner ? ' auto_fixes = 0,' : ''}
       fulfillment_status = CASE WHEN fulfillment_status = 'manual' AND fulfillment_id IS NULL THEN 'pending' ELSE fulfillment_status END,
       updated_at = datetime('now') WHERE id = ?`,
     order.id
@@ -307,6 +309,11 @@ function shopFor(receipt: EtsyReceipt): string {
 function fail(order: OrderRow, error: string) {
   run("UPDATE orders SET fulfill_error = ?, updated_at = datetime('now') WHERE id = ?", error, order.id)
   log(order.shop_id, `Bestelling ${order.etsy_order_id}: ${error}`, 'error')
+  // One automatic try by Aria per owner attempt; after that it waits on Fouten
+  const tries = get<{ auto_fixes: number }>('SELECT auto_fixes FROM orders WHERE id = ?', order.id)?.auto_fixes ?? 0
+  if (autoFixEnabled() && tries < 1 && queueOrderFix(order.shop_id, order.id, order.etsy_order_id, { auto: true })) {
+    run('UPDATE orders SET auto_fixes = auto_fixes + 1 WHERE id = ?', order.id)
+  }
 }
 
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err))

@@ -11,6 +11,7 @@ const ALLOWED_KEYS = [
   'luna_daily_designs',
   'etsy_publish_live',
   'order_fulfillment',
+  'auto_fix',
   'etsy_api_key',
   'etsy_api_secret',
   'printful_api_key',

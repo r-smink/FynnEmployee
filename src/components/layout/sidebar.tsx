@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Building2, Users, Package, ShoppingCart, BarChart3, Settings, Bot, ChevronDown, Plus, Store, Map as MapIcon, TrendingUp } from 'lucide-react'
+import { LayoutDashboard, Building2, Users, Package, ShoppingCart, BarChart3, Settings, Bot, ChevronDown, Plus, Store, Map as MapIcon, TrendingUp, AlertTriangle } from 'lucide-react'
 import { useAgents } from '@/hooks/use-agents'
 import { SHOPS_CHANGED_EVENT } from '@/components/shops/ShopProfileCard'
 import { useShopStatus } from '@/hooks/use-shop-status'
@@ -20,6 +20,7 @@ const getNavItems = (shopId: string) => [
   { href: `/shops/${shopId}/agents`, label: 'Agents', icon: Users },
   { href: `/shops/${shopId}/products`, label: 'Producten', icon: Package, badgeKey: 'review' as const },
   { href: `/shops/${shopId}/orders`, label: 'Bestellingen', icon: ShoppingCart, badgeKey: 'orders' as const },
+  { href: `/shops/${shopId}/errors`, label: 'Fouten', icon: AlertTriangle, badgeKey: 'errors' as const },
   { href: `/shops/${shopId}/analytics`, label: 'Analytics', icon: BarChart3 },
   { href: `/shops/${shopId}/trends`, label: 'Markttrends', icon: TrendingUp },
   { href: `/shops/${shopId}/settings`, label: 'Instellingen', icon: Settings },
@@ -104,7 +105,12 @@ export function Sidebar({ shopId = 'default' }: { shopId?: string }) {
         <div className="px-2.5 pt-2 pb-1.5 text-[10px] font-bold tracking-[.09em] uppercase" style={{ color: 'var(--text-s)' }}>Werkruimte</div>
         {navItems.map((item) => {
           const active = pathname === item.href || pathname.startsWith(item.href + '/')
-          const count = item.badgeKey === 'orders' && status ? status.newOrders + status.ordersToConfirm + status.orderErrors : item.badgeKey === 'review' && status ? status.review + status.publishFailed : 0
+          const counts = status && {
+            orders: status.newOrders + status.ordersToConfirm + status.orderErrors,
+            review: status.review + status.publishFailed,
+            errors: status.orderErrors + status.publishFailed + (status.taskErrors ?? 0),
+          }
+          const count = counts && item.badgeKey ? counts[item.badgeKey] : 0
           const badge = count ? count : null
           return (
             <Link
@@ -120,7 +126,7 @@ export function Sidebar({ shopId = 'default' }: { shopId?: string }) {
               <span className="flex-1 text-left">{item.label}</span>
               {badge !== null && (
                 <span className="flex-none min-w-[19px] h-[19px] px-1.5 rounded-full text-white text-[10.5px] font-bold flex items-center justify-center"
-                  style={{ background: active ? 'rgba(255,255,255,.25)' : 'var(--fyn-purple)' }}>
+                  style={{ background: active ? 'rgba(255,255,255,.25)' : item.badgeKey === 'errors' ? '#dc2626' : 'var(--fyn-purple)' }}>
                   {badge}
                 </span>
               )}

@@ -2,7 +2,7 @@
 
 import { use, useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { Clock, RefreshCw, CheckCircle2, XCircle, Truck, AlertTriangle, ShieldCheck, Zap, Hand, ExternalLink } from 'lucide-react'
+import { Clock, RefreshCw, CheckCircle2, XCircle, Truck, AlertTriangle, ShieldCheck, Zap, Hand, ExternalLink, X } from 'lucide-react'
 import { Topbar } from '@/components/layout/topbar'
 import { PageBody } from '@/components/layout/app-shell'
 import { euro } from '@/lib/labels'
@@ -32,6 +32,7 @@ interface FailedProduct {
   title: string
   publish_status: string | null
   publish_error: string | null
+  error_dismissed?: number
 }
 
 type Mode = 'off' | 'draft' | 'auto'
@@ -91,7 +92,7 @@ export default function OrdersPage({ params }: { params: Promise<{ shopId: strin
       if (Array.isArray(data)) setRealOrders(data)
     }).catch(() => {})
     fetch(`/api/shops/${shopId}/products`).then(r => r.json()).then(data => {
-      if (Array.isArray(data)) setFailedProducts(data.filter((p: FailedProduct) => p.publish_status === 'failed'))
+      if (Array.isArray(data)) setFailedProducts(data.filter((p: FailedProduct) => p.publish_status === 'failed' && !p.error_dismissed))
     }).catch(() => {})
     fetch('/api/settings').then(r => r.json()).then(data => {
       setMode(data.order_fulfillment === 'off' || data.order_fulfillment === 'auto' ? data.order_fulfillment : 'draft')
@@ -133,6 +134,15 @@ export default function OrdersPage({ params }: { params: Promise<{ shopId: strin
       load()
       window.dispatchEvent(new Event(SETTINGS_CHANGED_EVENT))
     }
+  }
+
+  const dismissProductError = async (productId: string) => {
+    setFailedProducts(list => list.filter(p => p.id !== productId))
+    await fetch(`/api/shops/${shopId}/products/${productId}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'dismiss_error' }),
+    }).catch(() => {})
+    load()
+    window.dispatchEvent(new Event(SETTINGS_CHANGED_EVENT))
   }
 
   const checkNow = async () => {
@@ -210,9 +220,12 @@ export default function OrdersPage({ params }: { params: Promise<{ shopId: strin
             </p>
           )}
           {notice && (
-            <p className="text-[12.5px] mt-2.5 mb-0 px-3 py-2 rounded-lg"
+            <p className="text-[12.5px] mt-2.5 mb-0 px-3 py-2 rounded-lg flex items-start gap-2"
               style={notice.error ? { background: 'var(--fyn-danger-light)', color: '#b91c1c' } : { background: 'var(--fyn-success-light)', color: '#047857' }}>
-              {notice.text}
+              <span className="flex-1">{notice.text}</span>
+              <button onClick={() => setNotice(null)} title="Wegklikken" aria-label="Melding wegklikken" className="flex-none cursor-pointer" style={{ color: 'inherit' }}>
+                <X className="w-3.5 h-3.5" />
+              </button>
             </p>
           )}
         </div>
@@ -376,6 +389,10 @@ export default function OrdersPage({ params }: { params: Promise<{ shopId: strin
                       style={{ background: 'var(--well)', color: 'var(--text-b)', border: '1px solid var(--well-border)' }}>
                       Naar Producten
                     </Link>
+                    <button className={smallBtn} style={{ background: 'var(--well)', color: 'var(--text-b)', border: '1px solid var(--well-border)' }} disabled={!!busy}
+                      title="Wegklikken. Opnieuw proberen kan nog bij Producten." onClick={() => dismissProductError(p.id)}>
+                      <X className="w-3.5 h-3.5" />Wegklikken
+                    </button>
                   </div>
                 </div>
               </div>

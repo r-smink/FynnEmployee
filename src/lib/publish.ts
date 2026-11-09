@@ -1,5 +1,6 @@
 import { get, run } from './db'
-import { getSetting } from './ai'
+import { getSetting, setSetting } from './ai'
+import { autoFixEnabled, queuePublishFix } from './agent-queue'
 import { emitAgentEvent } from './events'
 import { productSpec, PRODUCT_TYPES, type ProductSpec } from './product-specs'
 import { designPng, isDarkDesign, renderPrintFile, savePrintFile, signedFileUrl } from './print-files'
@@ -50,22 +51,49 @@ const running = (globalThis as unknown as { __fynnPublishing?: Set<string> }).__
 
 export const isPublishing = (productId: string) => running.has(productId)
 
-// Starts in the background; false when this product is already being published
+// Starts in the background; false when this product is already being published.
+// Used when the owner approves or retries, so automatic fixes may try again after this attempt.
 export function startPublish(productId: string, origin: string): boolean {
-  if (running.has(productId)) return false
-  const product = get<ProductRow>('SELECT * FROM products WHERE id = ?', productId)
-  if (!product) return false
+  run('UPDATE products SET auto_fixes = 0 WHERE id = ?', productId)
+  const attempt = begin(productId, origin)
+  if (!attempt) return false
+  attempt.catch(() => { /* recorded on the product */ })
+  return true
+}
+
+// For Marcus' fix task: the same, but waits and throws when it fails
+export async function publishAndWait(productId: string, origin?: string): Promise<void> {
+  const attempt = begin(productId, origin ?? getSetting('public_origin') ?? '')
+  if (!attempt) throw new Error('Dit product wordt al op Etsy gezet')
+  await attempt
+}
+
+function begin(productId: string, origin: string): Promise<void> | null {
+  if (running.has(productId)) return null
+  const product = get<ProductRow & { auto_fixes: number }>('SELECT * FROM products WHERE id = ?', productId)
+  if (!product) return null
+  if (!origin) {
+    const message = 'Het online adres van de app is nog onbekend. Keur het product één keer goed in de online app.'
+    run("UPDATE products SET publish_status = 'failed', publish_error = ?, error_dismissed = 0, updated_at = datetime('now') WHERE id = ?", message, productId)
+    return Promise.reject(new Error(message))
+  }
 
   running.add(productId)
-  run("UPDATE products SET publish_status = 'publishing', publish_error = NULL, updated_at = datetime('now') WHERE id = ?", productId)
-  publish(product, origin)
+  // Automatic fixes have no request to read the public address from
+  setSetting('public_origin', origin)
+  run("UPDATE products SET publish_status = 'publishing', publish_error = NULL, error_dismissed = 0, updated_at = datetime('now') WHERE id = ?", productId)
+  return publish(product, origin)
     .catch(err => {
       const message = err instanceof Error ? err.message : String(err)
       run("UPDATE products SET publish_status = 'failed', publish_step = NULL, publish_error = ?, updated_at = datetime('now') WHERE id = ?", message, productId)
       log(product.shop_id, `Kon "${product.title}" niet op Etsy zetten: ${message}`, 'error')
+      // One automatic try per owner attempt; after that it waits on Fouten
+      if (autoFixEnabled() && product.auto_fixes < 1 && queuePublishFix(product.shop_id, productId, product.title, { auto: true })) {
+        run('UPDATE products SET auto_fixes = auto_fixes + 1 WHERE id = ?', productId)
+      }
+      throw err
     })
     .finally(() => running.delete(productId))
-  return true
 }
 
 async function publish(product: ProductRow, origin: string) {

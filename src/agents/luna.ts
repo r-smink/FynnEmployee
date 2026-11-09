@@ -9,6 +9,7 @@ import { pickTheme, findTheme, activeThemes } from '@/lib/theme-store'
 import { isSeasonal, formatMonthDay, type DesignTheme } from '@/lib/themes'
 import { marketSummary, NO_MARKET_DATA } from '@/lib/market-context'
 import { PRODUCT_TYPES } from '@/lib/product-specs'
+import { enabledProductTypes } from '@/lib/shop-settings'
 import type { AgentConfig, Task, SimulationStep, TaskType } from './types'
 
 interface DesignBrief {
@@ -21,6 +22,15 @@ interface DesignBrief {
 
 // Used when every theme is switched off or out of season
 const FALLBACK_THEME = 'Trending'
+
+// Words in an owner's assignment that name a product type
+const PRODUCT_WORDS: [RegExp, string][] = [
+  [/t-?shirt|shirt|tee/i, 'T-Shirt'],
+  [/tote|tas|tassen|bag/i, 'Tote Bag'],
+  [/mok|mug|beker/i, 'Mug'],
+  [/poster|print/i, 'Poster'],
+  [/sticker/i, 'Sticker'],
+]
 
 export class LunaAgent extends BaseAgent {
   constructor(config: AgentConfig) {
@@ -70,11 +80,14 @@ Keep responses under 200 words. Be creative and market-aware.`
   }
 
   // In AI Live, "design" tasks produce a real image: the text model writes the brief, the image model draws it
+  // An assignment from the owner is a design too: it skips the daily limit and the review queue, because they asked for it
   async processWithAi(task: Task): Promise<void> {
-    if (task.type !== 'design_generate') return super.processWithAi(task)
+    const owner = task.type === 'owner_task'
+    if (task.type !== 'design_generate' && !owner) return super.processWithAi(task)
 
-    const blocked = this.designBlockReason()
+    const blocked = this.designBlockReason(owner)
     if (blocked) {
+      if (owner) throw new Error(blocked)
       this.log(`${blocked} Alleen een ontwerpbriefing.`, 'info', task.id)
       return super.processWithAi(task)
     }
@@ -83,7 +96,7 @@ Keep responses under 200 words. Be creative and market-aware.`
     const problem = await imageModelProblem(getImageModel())
     if (problem) throw new Error(problem)
 
-    const product = task.title.match(/"[^"]+" (.+)$/)?.[1] || 'T-Shirt'
+    const product = owner ? this.productForAssignment(task.description || task.title) : task.title.match(/"[^"]+" (.+)$/)?.[1] || 'T-Shirt'
 
     this.log(`Bedenkt een ontwerp voor: ${task.title}...`, 'thinking', task.id)
     this.updateProgress(task.id, 15, 'Ontwerpbriefing schrijven...')
@@ -117,15 +130,25 @@ Keep responses under 200 words. Be creative and market-aware.`
     this.updateProgress(task.id, 95, 'Klaar voor beoordeling')
   }
 
+  // The product type the owner named, or the first one that is switched on
+  private productForAssignment(text: string): string {
+    const enabled = enabledProductTypes(this.shopId)
+    const named = PRODUCT_WORDS.find(([pattern]) => pattern.test(text))?.[1]
+    if (named && !enabled.includes(named)) throw new Error(`${named} staat uit in Instellingen > Producttypes`)
+    return named ?? enabled[0]
+  }
+
   // Live: only when she may draw a new design (daily limit, review queue). No text-only briefs in between.
   hasRealWork(): boolean {
     return this.designBlockReason() === null
   }
 
   // Why no image may be made right now, or null when Luna can draw
-  private designBlockReason(): string | null {
+  private designBlockReason(owner = false): string | null {
     const limit = getDailyDesignLimit()
     if (limit === 0) return 'Beeldontwerpen staat uit in Instellingen.'
+    if (enabledProductTypes(this.shopId).length === 0) return 'Alle producttypes staan uit in Instellingen.'
+    if (owner) return null
     // Every generated image counts, including rejected and deleted ones (they lose their file but keep the row)
     const today = get<{ n: number }>(
       `SELECT COUNT(*) AS n FROM products
@@ -171,7 +194,10 @@ Reply with JSON only:
   generateTask(): { type: TaskType; title: string; description: string } {
     const picked = pickTheme(this.shopId)
     const theme = picked?.name ?? FALLBACK_THEME
-    const product = PRODUCT_TYPES[Math.floor(Math.random() * PRODUCT_TYPES.length)]
+    // Only types that are switched on; in demo mode with all off, any type is fine for a simulation
+    const enabled = enabledProductTypes(this.shopId)
+    const pool = enabled.length ? enabled : PRODUCT_TYPES
+    const product = pool[Math.floor(Math.random() * pool.length)]
     const types: TaskType[] = isAiEnabled() ? ['design_generate'] : ['design_generate', 'design_curate', 'design_trending']
     const type = types[Math.floor(Math.random() * types.length)]
 

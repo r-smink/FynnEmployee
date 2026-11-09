@@ -92,6 +92,15 @@ function migrate(database: Database.Database) {
   addColumn(database, 'products', 'publish_step', 'TEXT')
   addColumn(database, 'products', 'publish_error', 'TEXT')
   addColumn(database, 'products', 'fulfillment', 'TEXT')
+  // The owner clicked the publish error away; it leaves Fouten and the counters until the next attempt
+  addColumn(database, 'products', 'error_dismissed', 'INTEGER DEFAULT 0')
+  // Owner assignments and fixes wait in tasks with priority > 0; run_after delays an automatic fix
+  addColumn(database, 'tasks', 'run_after', 'TEXT')
+  // Errors the owner clicked away on Fouten or the dashboard
+  addColumn(database, 'activity_log', 'dismissed', 'INTEGER DEFAULT 0')
+  // Automatic fix attempts since the owner last tried, so a failure that keeps failing isn't retried forever
+  addColumn(database, 'products', 'auto_fixes', 'INTEGER DEFAULT 0')
+  addColumn(database, 'orders', 'auto_fixes', 'INTEGER DEFAULT 0')
 
   // Sending Etsy orders to Printful: what was ordered, the last error (shown under Fouten),
   // and the shipment that goes back to Etsy
