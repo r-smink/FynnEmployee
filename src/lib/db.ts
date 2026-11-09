@@ -7,8 +7,11 @@ const globalForDb = globalThis as unknown as { __fynnDb: Database.Database }
 
 function createDb(): Database.Database {
   // DATABASE_PATH points at a persistent volume in production (e.g. /data/fynnemployee.db on Railway)
-  const dbPath = process.env.DATABASE_PATH || path.join(process.cwd(), 'fynnemployee.db')
-  fs.mkdirSync(path.dirname(dbPath), { recursive: true })
+  // next build loads every route in parallel workers; sharing one new file there ends in "database is locked",
+  // and the build never reads real data, so each worker gets its own in-memory database
+  const building = process.env.NEXT_PHASE === 'phase-production-build'
+  const dbPath = building ? ':memory:' : process.env.DATABASE_PATH || path.join(process.cwd(), 'fynnemployee.db')
+  if (!building) fs.mkdirSync(path.dirname(dbPath), { recursive: true })
   const db = new Database(dbPath)
   db.pragma('journal_mode = WAL')
   db.pragma('foreign_keys = ON')
