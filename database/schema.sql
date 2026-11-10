@@ -152,7 +152,65 @@ CREATE TABLE IF NOT EXISTS rooms (
     updated_at  TEXT DEFAULT (datetime('now'))
 );
 
+-- Niches Nova found on Etsy by herself: demand (favorites per day of new listings) against competition
+CREATE TABLE IF NOT EXISTS trend_findings (
+    id           TEXT PRIMARY KEY,
+    shop_id      TEXT NOT NULL,
+    keyword      TEXT NOT NULL,
+    score        INTEGER NOT NULL,
+    demand       REAL NOT NULL,
+    competition  INTEGER NOT NULL,
+    median_price REAL,
+    currency     TEXT,
+    tags         TEXT,
+    examples     TEXT,
+    found_via    TEXT,
+    theme_name   TEXT,
+    reason       TEXT,
+    -- "MM-DD" when the niche is seasonal, so it becomes a seasonal theme
+    season_start TEXT,
+    season_end   TEXT,
+    status       TEXT NOT NULL DEFAULT 'new',  -- new, added (theme for Luna), ignored
+    created_at   TEXT DEFAULT (datetime('now')),
+    updated_at   TEXT DEFAULT (datetime('now')),
+    UNIQUE (shop_id, keyword)
+);
+
+-- Milo's SEO check of one Etsy listing, with the improved version (applied straight away or after approval)
+CREATE TABLE IF NOT EXISTS seo_reviews (
+    id           TEXT PRIMARY KEY,
+    shop_id      TEXT NOT NULL,
+    listing_id   TEXT NOT NULL,
+    listing_url  TEXT,
+    score_before INTEGER NOT NULL,
+    score_after  INTEGER,
+    issues       TEXT,
+    current      TEXT NOT NULL,
+    proposal     TEXT,
+    status       TEXT NOT NULL,  -- ok (nothing to improve), proposed, applied, rejected, failed
+    error        TEXT,
+    created_at   TEXT DEFAULT (datetime('now')),
+    applied_at   TEXT
+);
+
+-- Products promoted on other channels (Pinterest for now)
+CREATE TABLE IF NOT EXISTS promotions (
+    id           TEXT PRIMARY KEY,
+    shop_id      TEXT NOT NULL,
+    listing_id   TEXT NOT NULL,
+    channel      TEXT NOT NULL,
+    title        TEXT,
+    external_id  TEXT,
+    external_url TEXT,
+    status       TEXT NOT NULL,  -- posted, failed
+    error        TEXT,
+    created_at   TEXT DEFAULT (datetime('now'))
+);
+
 -- Indexes
+CREATE INDEX IF NOT EXISTS idx_trend_findings_shop ON trend_findings(shop_id, status, score);
+CREATE INDEX IF NOT EXISTS idx_seo_reviews_shop ON seo_reviews(shop_id, listing_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_promotions_shop ON promotions(shop_id, channel, listing_id);
 CREATE INDEX IF NOT EXISTS idx_rooms_shop ON rooms(shop_id);
 CREATE INDEX IF NOT EXISTS idx_agents_shop ON agents(shop_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_shop ON tasks(shop_id, agent_id, status);

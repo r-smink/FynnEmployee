@@ -2,7 +2,7 @@ export type AgentStatus = 'idle' | 'working' | 'paused' | 'error'
 export type TaskStatus = 'queued' | 'in_progress' | 'completed' | 'failed'
 export type ActivityType = 'info' | 'success' | 'warning' | 'error' | 'thinking'
 
-export type AgentTemplate = 'design' | 'listing' | 'fulfillment' | 'support' | 'analytics' | 'manager' | 'custom'
+export type AgentTemplate = 'design' | 'listing' | 'fulfillment' | 'support' | 'analytics' | 'marketing' | 'manager' | 'custom'
 
 export type TaskType =
   | 'design_generate' | 'design_curate' | 'design_trending'
@@ -11,6 +11,7 @@ export type TaskType =
   | 'support_reply' | 'support_review' | 'support_followup'
   | 'analytics_report' | 'analytics_trend' | 'analytics_competitor'
   | 'manager_delegate' | 'manager_review' | 'manager_optimize'
+  | 'seo_audit' | 'promo_pin'
   | 'custom_task'
   // Queued with priority: an assignment from the owner, or putting right something that failed
   | 'owner_task' | 'fix_publish' | 'fix_order'
@@ -92,5 +93,6 @@ export const DEFAULT_AGENT_TEMPLATES: Record<string, {
   aria: { id: 'aria', name: 'Aria', role: 'Fulfillment Agent', description: 'Manages order fulfillment and shipping', color: '#4aff9e', templateType: 'fulfillment' },
   rex: { id: 'rex', name: 'Rex', role: 'Support Agent', description: 'Handles customer support and reviews', color: '#ff9e4a', templateType: 'support' },
   nova: { id: 'nova', name: 'Nova', role: 'Analytics Agent', description: 'Analyzes sales trends and performance', color: '#ff4a9e', templateType: 'analytics' },
+  milo: { id: 'milo', name: 'Milo', role: 'SEO & Marketing Agent', description: 'Makes listings SEO-proof and promotes them', color: '#ef4444', templateType: 'marketing' },
   fynn: { id: 'fynn', name: 'Fynn', role: 'Manager Agent', description: 'Oversees and coordinates the entire workforce', color: '#ffe04a', templateType: 'manager', isManager: true },
 }

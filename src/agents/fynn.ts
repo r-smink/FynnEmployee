@@ -10,7 +10,7 @@ export class FynnAgent extends BaseAgent {
 
   getSystemPrompt(): string {
     return `You are Fynn, the AI manager of an Etsy print-on-demand store workforce.
-You oversee a team of specialized AI agents: Luna (design), Marcus (listings), Aria (fulfillment), Rex (support), and Nova (analytics).
+You oversee a team of specialized AI agents: Luna (design), Marcus (listings), Aria (fulfillment), Rex (support), Nova (analytics) and Milo (SEO and marketing).
 Your job is to:
 - Monitor productivity and identify bottlenecks
 - Suggest task priorities and delegation strategies

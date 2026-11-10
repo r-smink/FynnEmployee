@@ -6,6 +6,7 @@ import { Topbar } from '@/components/layout/topbar'
 import { PageBody } from '@/components/layout/app-shell'
 import type { TrendReport, PriceBucket, TagStat } from '@/lib/trends'
 import { ThemesCard } from '@/components/trends/ThemesCard'
+import { TrendFindingsCard } from '@/components/trends/TrendFindingsCard'
 
 const nf = new Intl.NumberFormat('nl-NL')
 const money = (v: number, currency: string, digits = 2) =>
@@ -120,6 +121,8 @@ export default function TrendsPage({ params }: { params: Promise<{ shopId: strin
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [priceTable, setPriceTable] = useState(false)
+  // Bumped when Nova's finding becomes a theme, so the themes list reloads
+  const [themesVersion, setThemesVersion] = useState(0)
 
   useEffect(() => {
     fetch(`/api/shops/${shopId}/trends`).then(r => r.json()).then(d => {
@@ -191,7 +194,8 @@ export default function TrendsPage({ params }: { params: Promise<{ shopId: strin
           )}
         </div>
 
-        <ThemesCard shopId={shopId} onSearch={search} />
+        <TrendFindingsCard shopId={shopId} onSearch={search} onThemesChanged={() => setThemesVersion(v => v + 1)} />
+        <ThemesCard key={themesVersion} shopId={shopId} onSearch={search} />
 
         {error && <p className="text-[12.5px] px-3.5 py-2.5 rounded-lg mb-[18px]" style={{ background: 'var(--fyn-danger-light)', color: '#b91c1c' }}>{error}</p>}
 

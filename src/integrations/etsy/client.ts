@@ -216,6 +216,22 @@ export async function getListings(
   return etsyFetch(`/application/shops/${shopId}/listings?state=${status}&limit=${limit}&offset=${offset}`)
 }
 
+// Every live and draft listing of the shop, with photos and video, for Milo's SEO check
+export async function getAllShopListings(): Promise<EtsyShopListing[]> {
+  const shopId = getShopId()
+  const listings: EtsyShopListing[] = []
+  for (const state of ['active', 'draft'] as const) {
+    for (let offset = 0; offset < 500; offset += 100) {
+      const page = await etsyFetch<{ count: number; results: EtsyShopListing[] }>(
+        `/application/shops/${shopId}/listings?state=${state}&limit=100&offset=${offset}&includes=Images,Videos`
+      )
+      listings.push(...page.results)
+      if (page.results.length < 100) break
+    }
+  }
+  return listings
+}
+
 export async function createListing(data: CreateListingData): Promise<EtsyListing> {
   const shopId = getShopId()
   return etsyFetch(`/application/shops/${shopId}/listings`, {
@@ -283,6 +299,40 @@ export async function uploadListingImage(listingId: number, image: Blob, filenam
   return etsyFetch<{ listing_image_id: number }>(`/application/shops/${getShopId()}/listings/${listingId}/images`, {
     method: 'POST',
     body,
+  })
+}
+
+// Etsy accepts one video per listing: 5 to 15 seconds, at most 100 MB
+export async function uploadListingVideo(listingId: number, video: Blob, name: string) {
+  const body = new FormData()
+  body.set('video', video, `${name.replace(/[^\w-]+/g, '-').slice(0, 60) || 'video'}.mp4`)
+  body.set('name', name.slice(0, 100))
+  return etsyFetch<{ video_id: number }>(`/application/shops/${getShopId()}/listings/${listingId}/videos`, {
+    method: 'POST',
+    body,
+  })
+}
+
+// Fields that can be set after the listing exists: styles, or the SEO text
+export async function updateListingFields(listingId: number, data: {
+  styles?: string[]; materials?: string[]; title?: string; description?: string; tags?: string[]
+}) {
+  return etsyFetch<EtsyListing>(`/application/shops/${getShopId()}/listings/${listingId}`, {
+    method: 'PATCH',
+    body: form(data),
+  })
+}
+
+// The attributes buyers can filter on in a category (colour, occasion, ...), with the values Etsy allows
+export async function getTaxonomyProperties(taxonomyId: number): Promise<TaxonomyProperty[]> {
+  const data = await etsyFetch<{ results: TaxonomyProperty[] }>(`/application/seller-taxonomy/nodes/${taxonomyId}/properties`)
+  return data.results
+}
+
+export async function updateListingProperty(listingId: number, propertyId: number, values: { value_id: number; name: string; scale_id: number | null }[]) {
+  return etsyFetch(`/application/shops/${getShopId()}/listings/${listingId}/properties/${propertyId}`, {
+    method: 'PUT',
+    body: form({ value_ids: values.map(v => v.value_id), values: values.map(v => v.name), scale_id: values[0]?.scale_id }),
   })
 }
 
@@ -413,6 +463,13 @@ export interface EtsyListing {
   last_modified_timestamp: number
 }
 
+export interface EtsyShopListing extends EtsyListing {
+  materials?: string[]
+  styles?: string[]
+  images?: { listing_image_id: number; url_570xN: string; url_fullxfull: string; alt_text: string | null }[]
+  videos?: { video_id: number }[]
+}
+
 export interface CreateListingData {
   title: string
   description: string
@@ -440,6 +497,7 @@ export interface DraftListingData {
   shipping_profile_id: number
   readiness_state_id: number
   tags?: string[]
+  materials?: string[]
   production_partner_ids?: number[]
 }
 
@@ -462,6 +520,17 @@ export interface TaxonomyNode {
   parent_id: number | null
   children: TaxonomyNode[]
   full_path_taxonomy_ids: number[]
+}
+
+export interface TaxonomyProperty {
+  property_id: number
+  name: string
+  display_name: string
+  is_required: boolean
+  supports_attributes: boolean
+  is_multivalued: boolean
+  max_values_allowed: number | null
+  possible_values: { value_id: number; name: string; scale_id: number | null }[]
 }
 
 export interface ReadinessState {

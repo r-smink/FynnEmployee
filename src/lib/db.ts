@@ -125,6 +125,28 @@ function migrate(database: Database.Database) {
     database.exec("INSERT INTO settings (key, value) VALUES ('made_up_tasks_cleared', '1')")
   }).immediate()
 
+  // Milo (SEO & marketing) joined after the first shops were made: hire him once in every shop, in the
+  // marketing room or an empty R&D lab. Once only, so a shop that removes him doesn't get him back.
+  database.transaction(() => {
+    if (database.prepare("SELECT 1 FROM settings WHERE key = 'milo_hired'").get()) return
+    const milo = DEFAULT_AGENT_TEMPLATES.milo
+    const shops = database.prepare('SELECT id FROM shops').all() as { id: string }[]
+    for (const shop of shops) {
+      if (database.prepare("SELECT 1 FROM agents WHERE shop_id = ? AND template_type = 'marketing'").get(shop.id)) continue
+      const id = shop.id === 'default' ? milo.id : `${shop.id}-${milo.id}`
+      const room = database.prepare(
+        `SELECT r.id FROM rooms r WHERE r.shop_id = ? AND (r.function = 'marketing'
+           OR (r.function = 'rnd' AND NOT EXISTS (SELECT 1 FROM agents a WHERE a.shop_id = r.shop_id AND a.room_id = r.id)))
+         ORDER BY r.function = 'marketing' DESC LIMIT 1`
+      ).get(shop.id) as { id: string } | undefined
+      database.prepare(
+        `INSERT OR IGNORE INTO agents (id, shop_id, name, role, description, avatar_url, color, template_type, is_custom, is_manager, room_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?)`
+      ).run(id, shop.id, milo.name, milo.role, milo.description, '/agents/milo.svg', milo.color, milo.templateType, room?.id ?? null)
+    }
+    database.exec("INSERT INTO settings (key, value) VALUES ('milo_hired', '1')")
+  }).immediate()
+
   // Older versions read a receipt field Etsy doesn't send, so imported orders got the id "undefined"
   database.exec("DELETE FROM orders WHERE etsy_order_id = 'undefined' AND fulfillment_id IS NULL")
 }

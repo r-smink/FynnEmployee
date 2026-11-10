@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Building2, Users, Package, ShoppingCart, BarChart3, Settings, Bot, ChevronDown, Plus, Store, Map as MapIcon, TrendingUp, AlertTriangle } from 'lucide-react'
+import { LayoutDashboard, Building2, Users, Package, ShoppingCart, BarChart3, Settings, Bot, ChevronDown, Plus, Store, Map as MapIcon, TrendingUp, AlertTriangle, Megaphone } from 'lucide-react'
 import { useAgents } from '@/hooks/use-agents'
 import { SHOPS_CHANGED_EVENT } from '@/components/shops/ShopProfileCard'
 import { useShopStatus } from '@/hooks/use-shop-status'
@@ -23,6 +23,7 @@ const getNavItems = (shopId: string) => [
   { href: `/shops/${shopId}/errors`, label: 'Fouten', icon: AlertTriangle, badgeKey: 'errors' as const },
   { href: `/shops/${shopId}/analytics`, label: 'Analytics', icon: BarChart3 },
   { href: `/shops/${shopId}/trends`, label: 'Markttrends', icon: TrendingUp },
+  { href: `/shops/${shopId}/marketing`, label: 'Marketing', icon: Megaphone },
   { href: `/shops/${shopId}/settings`, label: 'Instellingen', icon: Settings },
 ]
 

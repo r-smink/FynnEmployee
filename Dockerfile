@@ -17,6 +17,8 @@ RUN npx next build --webpack && npm prune --omit=dev
 FROM node:24-bookworm-slim
 WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 DATABASE_PATH=/data/fynnemployee.db
+# ffmpeg makes the short product video for each Etsy listing
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -rf /var/lib/apt/lists/*
 COPY --from=build /app/package.json ./
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/.next ./.next
