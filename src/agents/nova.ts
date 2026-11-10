@@ -4,6 +4,9 @@ import { activeThemes } from '@/lib/theme-store'
 import { isSeasonal, formatMonthDay } from '@/lib/themes'
 import { getShopSetting } from '@/lib/shop-settings'
 import { marketSummary, NO_MARKET_DATA } from '@/lib/market-context'
+import { hasEtsyKey } from '@/integrations/etsy/market'
+import { run } from '@/lib/db'
+import { discoverTrends, discoverySummary } from '@/lib/trend-discovery'
 import type { AgentConfig, Task, SimulationStep, TaskType } from './types'
 
 // Market searches per trend task: each costs a few Etsy API calls (cached for 30 minutes)
@@ -35,6 +38,26 @@ Keep responses under 200 words. Be data-driven and specific with numbers.`
     return `Conduct a competitor pricing analysis for print-on-demand products on Etsy. Compare our pricing strategy, identify gaps, and suggest pricing adjustments for maximum margin.`
   }
 
+  // With an Etsy key a trend task is real research: Nova looks for rising niches herself and measures them
+  async processWithAi(task: Task): Promise<void> {
+    if (task.type !== 'analytics_trend' || !hasEtsyKey()) return super.processWithAi(task)
+    this.log('Gaat zelf op Etsy op zoek naar stijgende niches...', 'thinking', task.id)
+    const result = await discoverTrends(this.shopId, {
+      model: this.model,
+      onStep: (message, progress) => {
+        this.log(message, 'info', task.id)
+        this.updateProgress(task.id, progress, message)
+      },
+    })
+    const summary = discoverySummary(result)
+    run('UPDATE tasks SET output_data = ? WHERE id = ?', JSON.stringify({ aiResponse: summary }), task.id)
+    const best = result.findings.find(f => f.status !== 'ignored')
+    this.log(best
+      ? `${result.findings.length} niches gemeten. Sterkste: "${best.keyword}" (score ${best.score})`
+      : 'Geen bruikbare nieuwe niches gevonden deze ronde', best ? 'success' : 'info', task.id)
+    for (const name of result.added) this.log(`Nieuw thema voor Luna: ${name}`, 'success', task.id)
+  }
+
   // Trend and pricing analyses get the shop's themes and real Etsy figures instead of guesses
   protected async getTaskContext(task: Task): Promise<string | null> {
     if (task.type !== 'analytics_trend' && task.type !== 'analytics_competitor') return null
@@ -60,8 +83,9 @@ Keep responses under 200 words. Be data-driven and specific with numbers.`
   }
 
   generateTask(): { type: TaskType; title: string; description: string } {
+    // Live with Etsy data, two of three rounds go to finding new niches
     const types: TaskType[] = isAiEnabled()
-      ? ['analytics_trend', 'analytics_competitor']
+      ? hasEtsyKey() ? ['analytics_trend', 'analytics_trend', 'analytics_competitor'] : ['analytics_trend', 'analytics_competitor']
       : ['analytics_report', 'analytics_trend', 'analytics_competitor']
     const type = types[Math.floor(Math.random() * types.length)]
 

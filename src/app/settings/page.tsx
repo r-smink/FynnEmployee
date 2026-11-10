@@ -51,6 +51,7 @@ const agents = [
   { id: 'aria', name: 'Aria', role: 'Fulfillment Agent', color: '#4aff9e' },
   { id: 'rex', name: 'Rex', role: 'Support Agent', color: '#ff9e4a' },
   { id: 'nova', name: 'Nova', role: 'Analytics Agent', color: '#ff4a9e' },
+  { id: 'milo', name: 'Milo', role: 'SEO & Marketing Agent', color: '#ef4444' },
 ]
 
 interface EtsyShop {

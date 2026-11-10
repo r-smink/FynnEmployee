@@ -163,6 +163,8 @@ export async function createMockupTask(productId: number, params: {
   variant_ids: number[]
   format?: 'jpg' | 'png'
   files: { placement: string; image_url: string; position?: PrintPosition }[]
+  // Mockup styles to make (flat, on a model, lifestyle, ...); names from getPrintfiles
+  option_groups?: string[]
 }): Promise<{ task_key: string; status: string }> {
   return printfulFetch(`/mockup-generator/create-task/${productId}`, {
     method: 'POST',
@@ -372,6 +374,8 @@ export interface PrintfulPrintfiles {
   available_placements: Record<string, string>
   printfiles: { printfile_id: number; width: number; height: number; dpi: number; fill_mode: string }[]
   variant_printfiles: { variant_id: number; placements: Record<string, number> }[]
+  // Mockup styles the generator offers for this product
+  option_groups?: string[]
 }
 
 export interface PrintfulFile {

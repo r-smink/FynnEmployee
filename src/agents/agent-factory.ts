@@ -6,6 +6,7 @@ import { AriaAgent } from './aria'
 import { RexAgent } from './rex'
 import { NovaAgent } from './nova'
 import { FynnAgent } from './fynn'
+import { MiloAgent } from './milo'
 import { CustomAgent } from './custom-agent'
 
 const TEMPLATE_MAP: Record<string, new (config: AgentConfig) => BaseAgent> = {
@@ -14,6 +15,7 @@ const TEMPLATE_MAP: Record<string, new (config: AgentConfig) => BaseAgent> = {
   fulfillment: AriaAgent,
   support: RexAgent,
   analytics: NovaAgent,
+  marketing: MiloAgent,
   manager: FynnAgent,
 }
 

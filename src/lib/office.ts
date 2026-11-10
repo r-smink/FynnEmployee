@@ -48,7 +48,7 @@ export const ROOM_FUNCTIONS: Record<RoomFunction, RoomFunctionDef> = {
   lounge:      { label: 'Lounge',         color: '#f472b6', description: 'Pauzeplek voor het team', handles: 'Ontspanning', agentTemplate: null },
   photo:       { label: 'Fotostudio',     color: '#facc15', description: "Productfoto's en mockups voor listings", handles: "Foto's & mockups", agentTemplate: null },
   warehouse:   { label: 'Magazijn',       color: '#b45309', description: 'Voorraad en materialen', handles: 'Voorraadbeheer', agentTemplate: null },
-  marketing:   { label: 'Marketing',      color: '#ef4444', description: 'Campagnes, social media en advertenties', handles: 'Campagnes & ads', agentTemplate: null },
+  marketing:   { label: 'Marketing',      color: '#ef4444', description: 'Campagnes, social media en advertenties', handles: 'SEO & promotie', agentTemplate: 'marketing' },
   canteen:     { label: 'Kantine',        color: '#14b8a6', description: 'Lunch en koffie voor het hele team', handles: 'Lunchpauze', agentTemplate: null },
 }
 
@@ -60,7 +60,7 @@ export const DEFAULT_GRID: OfficeGrid = { cols: 4, rows: 3 }
 
 // Default 4x3 layout from the design
 export const DEFAULT_LAYOUT: Pick<Room, 'function' | 'col' | 'row' | 'width' | 'depth'>[] = [
-  { function: 'rnd',         col: 0, row: 0, width: 1, depth: 2 },
+  { function: 'marketing',   col: 0, row: 0, width: 1, depth: 2 },
   { function: 'manager',     col: 1, row: 0, width: 2, depth: 1 },
   { function: 'design',      col: 3, row: 0, width: 1, depth: 1 },
   { function: 'listing',     col: 1, row: 1, width: 1, depth: 1 },
