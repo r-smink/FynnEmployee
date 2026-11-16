@@ -17,6 +17,9 @@ RUN npx next build --webpack && npm prune --omit=dev
 FROM node:24-bookworm-slim
 WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 DATABASE_PATH=/data/fynnemployee.db
+# The instance has 512 MB. Fewer glibc malloc arenas keep image work (sharp/libvips) from fragmenting
+# memory that is never given back, and a smaller JS heap makes V8 collect garbage before it gets that far.
+ENV MALLOC_ARENA_MAX=2 NODE_OPTIONS=--max-old-space-size=256
 # ffmpeg makes the short product video for each Etsy listing
 RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -rf /var/lib/apt/lists/*
 COPY --from=build /app/package.json ./
@@ -26,4 +29,5 @@ COPY --from=build /app/public ./public
 COPY --from=build /app/database ./database
 COPY --from=build /app/next.config.ts ./
 EXPOSE 3000
-CMD ["sh", "-c", "npx next start -H 0.0.0.0 -p ${PORT:-3000}"]
+# Straight through node: npx would keep an extra npm process (~50 MB) running next to the app
+CMD ["sh", "-c", "exec node node_modules/next/dist/bin/next start -H 0.0.0.0 -p ${PORT:-3000}"]

@@ -1,7 +1,7 @@
 import crypto from 'crypto'
 import fs from 'fs'
 import path from 'path'
-import sharp from 'sharp'
+import { sharp } from './heavy-work'
 import { getSetting, setSetting } from './ai'
 import { designsDir, DESIGN_FILE } from './images'
 
