@@ -26,7 +26,8 @@ export async function slideshowVideo(images: Buffer[]): Promise<Buffer | null> {
       `setsar=1,fps=30,fade=t=in:st=0:d=${FADE},fade=t=out:st=${each - FADE}:d=${FADE}[v${i}]`)
     const filter = `${scenes.join(';')};${images.map((_, i) => `[v${i}]`).join('')}concat=n=${images.length}:v=1:a=0,format=yuv420p[out]`
     const out = path.join(dir, 'video.mp4')
-    const ran = await ffmpeg([...inputs, '-filter_complex', filter, '-map', '[out]', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23', '-movflags', '+faststart', '-y', out])
+    // One thread each for decoding, filters and x264: ffmpeg shares the server's 512 MB with the app
+    const ran = await ffmpeg(['-filter_threads', '1', '-filter_complex_threads', '1', ...inputs, '-filter_complex', filter, '-map', '[out]', '-c:v', 'libx264', '-threads', '1', '-preset', 'veryfast', '-crf', '23', '-movflags', '+faststart', '-y', out])
     return ran ? fs.readFileSync(out) : null
   } finally {
     fs.rmSync(dir, { recursive: true, force: true })

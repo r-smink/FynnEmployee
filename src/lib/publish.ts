@@ -1,5 +1,5 @@
 import { get, run } from './db'
-import sharp from 'sharp'
+import { sharp, oneAtATime } from './heavy-work'
 import { askAi, getSetting, isAiEnabled, setSetting } from './ai'
 import { autoFixEnabled, queuePublishFix } from './agent-queue'
 import { emitAgentEvent } from './events'
@@ -131,7 +131,7 @@ async function publish(product: ProductRow, origin: string) {
 
   if (!state) {
     step('Printbestanden maken')
-    state = await preparePrintFiles(product, spec, designFile)
+    state = await oneAtATime(() => preparePrintFiles(product, spec, designFile))
     save()
     const prices = state.variants.map(v => v.price)
     run('UPDATE products SET base_cost = ?, price = ? WHERE id = ?',
@@ -183,7 +183,7 @@ async function publish(product: ProductRow, origin: string) {
   for (let i = state.imagesUploaded ?? 0; !state.imagesCapped && i < images.length; i++) {
     let image: Blob
     if (images[i] === DESIGN_PHOTO) {
-      image = new Blob([new Uint8Array(await designCloseUp(designFile))], { type: 'image/jpeg' })
+      image = new Blob([new Uint8Array(await oneAtATime(() => designCloseUp(designFile)))], { type: 'image/jpeg' })
     } else {
       const res = await fetch(images[i], { signal: AbortSignal.timeout(60_000) })
       if (!res.ok) {
@@ -361,9 +361,11 @@ async function designCloseUp(designFile: string): Promise<Buffer> {
 }
 
 async function addVideo(listingId: number, mockups: string[], title: string): Promise<boolean> {
-  const shots = await Promise.all(mockups.slice(0, 6).map(url =>
-    fetch(url, { signal: AbortSignal.timeout(60_000) }).then(r => r.ok ? r.arrayBuffer() : null).catch(() => null)))
-  const video = await slideshowVideo(shots.filter((s): s is ArrayBuffer => !!s).map(s => Buffer.from(s)))
+  const video = await oneAtATime(async () => {
+    const shots = await Promise.all(mockups.slice(0, 6).map(url =>
+      fetch(url, { signal: AbortSignal.timeout(60_000) }).then(r => r.ok ? r.arrayBuffer() : null).catch(() => null)))
+    return slideshowVideo(shots.filter((s): s is ArrayBuffer => !!s).map(s => Buffer.from(s)))
+  })
   if (!video) return false
   await uploadListingVideo(listingId, new Blob([new Uint8Array(video)], { type: 'video/mp4' }), title)
   return true
