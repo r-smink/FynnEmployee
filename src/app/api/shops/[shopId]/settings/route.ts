@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSetting, setSetting, getAiMode, hasAiKey, isAiEnabled } from '@/lib/ai'
+import { getSetting, setSetting, getAiMode, hasAiKey, isAiEnabled, getAiProvider, AI_PROVIDERS } from '@/lib/ai'
 import { getShopSetting, setShopSetting, disabledProductTypes, DISABLED_TYPES_KEY } from '@/lib/shop-settings'
 import { PRODUCT_TYPES } from '@/lib/product-specs'
 import { purgeDemoDataIfLive } from '@/lib/demo-data'
 
 export const dynamic = 'force-dynamic'
 
-const GLOBAL_KEYS = ['openrouter_api_key', 'openrouter_model', 'openrouter_image_model', 'luna_daily_designs']
+const GLOBAL_KEYS = ['openrouter_api_key', 'openrouter_model', 'openrouter_image_model', 'luna_daily_designs', 'anthropic_api_key', 'anthropic_model']
 // The Etsy and Printful clients read their keys from the global settings, so store them there too
 const INTEGRATION_KEYS = ['etsy_api_key', 'etsy_api_secret', 'printful_api_key']
 
@@ -33,6 +33,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ sho
   settings['ai_enabled'] = isAiEnabled() ? 'true' : 'false'
   settings['ai_mode'] = getAiMode()
   settings['has_api_key'] = hasAiKey() ? 'true' : 'false'
+  settings['ai_provider'] = getAiProvider()
   settings[DISABLED_TYPES_KEY] = JSON.stringify(disabledProductTypes(shopId))
 
   return NextResponse.json(settings)
@@ -48,6 +49,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         setSetting(key, value.trim())
       }
     }
+  }
+  if (typeof body.ai_provider === 'string' && (AI_PROVIDERS as string[]).includes(body.ai_provider)) {
+    setSetting('ai_provider', body.ai_provider)
   }
   // Product types switched off for this shop, as a list
   if (Array.isArray(body[DISABLED_TYPES_KEY])) {

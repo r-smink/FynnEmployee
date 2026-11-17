@@ -17,6 +17,7 @@ import { DesignSettings } from '@/components/settings/DesignSettings'
 import { ProductTypeSettings } from '@/components/settings/ProductTypeSettings'
 import { agentRole } from '@/lib/labels'
 import { ShopProfileCard } from '@/components/shops/ShopProfileCard'
+import { ANTHROPIC_MODELS, DEFAULT_ANTHROPIC_MODEL } from '@/lib/anthropic-models'
 
 interface ApiKeyField {
   label: string
@@ -26,21 +27,45 @@ interface ApiKeyField {
   type?: 'text' | 'password'
 }
 
-const apiKeys: ApiKeyField[] = [
-  {
-    label: 'OpenRouter API-sleutel',
-    key: 'openrouter_api_key',
-    placeholder: 'sk-or-v1-…',
-    description: 'Voedt alle AI-agents. Gratis sleutel via openrouter.ai/keys',
-  },
-  {
-    label: 'Standaardmodel',
-    key: 'openrouter_model',
-    placeholder: '',
-    description: 'Gebruikt door elke agent zonder eigen model. Per agent kies je een model op de Agents-pagina.',
-    type: 'text',
-  },
+type AiProvider = 'openrouter' | 'anthropic'
+
+const providerOptions: { id: AiProvider; label: string; hint: string }[] = [
+  { id: 'openrouter', label: 'OpenRouter', hint: 'Honderden modellen van alle aanbieders met één sleutel' },
+  { id: 'anthropic', label: 'Anthropic API-sleutel', hint: 'Claude-modellen direct bij Anthropic' },
 ]
+
+const apiKeysByProvider: Record<AiProvider, ApiKeyField[]> = {
+  openrouter: [
+    {
+      label: 'OpenRouter API-sleutel',
+      key: 'openrouter_api_key',
+      placeholder: 'sk-or-v1-…',
+      description: 'Voedt alle AI-agents. Gratis sleutel via openrouter.ai/keys',
+    },
+    {
+      label: 'Standaardmodel',
+      key: 'openrouter_model',
+      placeholder: '',
+      description: 'Gebruikt door elke agent zonder eigen model. Per agent kies je een model op de Agents-pagina.',
+      type: 'text',
+    },
+  ],
+  anthropic: [
+    {
+      label: 'Anthropic API-sleutel',
+      key: 'anthropic_api_key',
+      placeholder: 'sk-ant-…',
+      description: 'Voedt alle AI-agents met Claude. Sleutel via platform.claude.com',
+    },
+    {
+      label: 'Standaardmodel',
+      key: 'anthropic_model',
+      placeholder: '',
+      description: 'Gebruikt door elke agent. Een Claude-model dat per agent is gekozen blijft gelden; modellen van andere aanbieders vallen terug op dit model.',
+      type: 'text',
+    },
+  ],
+}
 
 interface EtsyShop {
   id: number
@@ -83,7 +108,12 @@ function SettingsContent({ shopId }: { shopId: string }) {
   const [storedKeys, setStoredKeys] = useState<Record<string, string | null>>({})
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const { live: aiEnabled, hasApiKey } = useAiMode()
+  const { live: aiEnabled, hasApiKey, provider: savedProvider } = useAiMode()
+  // Provider picked on this page; saved together with the keys
+  const [provider, setProvider] = useState<AiProvider | null>(null)
+  const activeProvider = provider ?? savedProvider
+  const providerName = savedProvider === 'anthropic' ? 'Anthropic' : 'OpenRouter'
+  const apiKeys = apiKeysByProvider[activeProvider]
 
   // Etsy state
   const [etsyConnected, setEtsyConnected] = useState(false)
@@ -113,6 +143,7 @@ function SettingsContent({ shopId }: { shopId: string }) {
     fetch(`/api/shops/${shopId}/settings`).then(r => r.json()).then(data => {
       setStoredKeys(data)
       if (data.openrouter_model) setValues(v => ({ ...v, openrouter_model: v.openrouter_model ?? data.openrouter_model }))
+      setValues(v => ({ ...v, anthropic_model: v.anthropic_model ?? (data.anthropic_model || DEFAULT_ANTHROPIC_MODEL) }))
     }).catch(() => {})
 
   useEffect(() => {
@@ -172,7 +203,7 @@ function SettingsContent({ shopId }: { shopId: string }) {
     setSaving(true)
     setSaved(false)
     try {
-      const payload: Record<string, string> = {}
+      const payload: Record<string, string> = { ai_provider: activeProvider }
       for (const [key, value] of Object.entries(values)) {
         if (value.trim()) payload[key] = value.trim()
       }
@@ -184,7 +215,8 @@ function SettingsContent({ shopId }: { shopId: string }) {
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       setSaved(true)
       // Clear typed keys so the fields show the stored (masked) value again
-      setValues(v => ({ openrouter_model: v.openrouter_model }))
+      setValues(v => ({ openrouter_model: v.openrouter_model, anthropic_model: v.anthropic_model }))
+      setProvider(null)
       await fetchSettings()
       window.dispatchEvent(new Event(SETTINGS_CHANGED_EVENT))
       setTimeout(() => setSaved(false), 3000)
@@ -246,10 +278,10 @@ function SettingsContent({ shopId }: { shopId: string }) {
                 </div>
                 <div className="text-[12.5px] mt-0.5" style={{ color: 'var(--text-m)' }}>
                   {aiEnabled
-                    ? 'Agents gebruiken OpenRouter voor echte content'
+                    ? `Agents gebruiken ${providerName} voor echte content`
                     : hasApiKey
                       ? 'Agents simuleren hun werk. Schakel bovenin naar AI Live voor echte content.'
-                      : 'Voeg een OpenRouter-sleutel toe om AI-gestuurde agents in te schakelen.'}
+                      : `Voeg een ${providerName}-sleutel toe om AI-gestuurde agents in te schakelen.`}
                 </div>
               </div>
             </div>
@@ -370,17 +402,46 @@ function SettingsContent({ shopId }: { shopId: string }) {
           {/* API keys */}
           <div className="fynn-card p-[22px] mb-[18px]">
             <CardTitle icon={Key} color="var(--fyn-blue)">API-sleutels</CardTitle>
+            <div className="mb-4">
+              <label className="fynn-label">AI-aanbieder</label>
+              <div className="fynn-hint">Kies waarmee de agents hun tekst schrijven. Beeldontwerpen (Luna) lopen altijd via OpenRouter.</div>
+              <div role="radiogroup" aria-label="AI-aanbieder" className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {providerOptions.map(opt => {
+                  const on = activeProvider === opt.id
+                  return (
+                    <button key={opt.id} type="button" role="radio" aria-checked={on} onClick={() => setProvider(opt.id)}
+                      className="text-left rounded-[11px] px-3.5 py-3 cursor-pointer"
+                      style={{ background: on ? 'rgba(55,159,211,.12)' : 'var(--well)', border: `1.5px solid ${on ? 'var(--fyn-blue)' : 'var(--input-border)'}` }}>
+                      <div className="flex items-center gap-2 text-[13px] font-bold" style={{ color: 'var(--text-h)' }}>
+                        {on && <Check className="w-3.5 h-3.5" style={{ color: 'var(--fyn-blue)' }} />}
+                        {opt.label}
+                        {savedProvider === opt.id && <span className="fynn-pill" style={connectedPill}>Actief</span>}
+                      </div>
+                      <div className="text-[11.5px] mt-0.5" style={{ color: 'var(--text-m)' }}>{opt.hint}</div>
+                    </button>
+                  )
+                })}
+              </div>
+              {provider && provider !== savedProvider && (
+                <div className="fynn-hint mt-2" style={{ color: '#d97706' }}>Klik op &quot;Instellingen opslaan&quot; om over te stappen.</div>
+              )}
+            </div>
             {apiKeys.map((field) => (
               <div key={field.key} className="mb-4">
                 <label className="fynn-label flex items-center gap-2">
                   {field.label}
-                  {field.key !== 'openrouter_model' && storedKeys[field.key] && (
+                  {field.type !== 'text' && storedKeys[field.key] && (
                     <span className="fynn-pill" style={connectedPill}><Check className="w-3 h-3" /> Opgeslagen</span>
                   )}
                 </label>
                 {field.description && <div className="fynn-hint">{field.description}</div>}
                 {field.key === 'openrouter_model' ? (
                   <ModelPicker value={values.openrouter_model ?? defaultModel} onChange={m => setValues(v => ({ ...v, openrouter_model: m }))} />
+                ) : field.key === 'anthropic_model' ? (
+                  <select className="fynn-inp" value={values.anthropic_model ?? DEFAULT_ANTHROPIC_MODEL}
+                    onChange={e => setValues(v => ({ ...v, anthropic_model: e.target.value }))}>
+                    {ANTHROPIC_MODELS.map(m => <option key={m.id} value={m.id}>{m.name} · {m.note}</option>)}
+                  </select>
                 ) : (
                   <input className="fynn-inp" type={field.type || 'password'}
                     placeholder={storedKeys[field.key] ? `${storedKeys[field.key]}  (typ om te vervangen)` : field.placeholder}
@@ -393,9 +454,15 @@ function SettingsContent({ shopId }: { shopId: string }) {
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : saved ? <Check className="w-4 h-4" /> : null}
                 {saving ? 'Opslaan…' : saved ? 'Opgeslagen!' : 'Instellingen opslaan'}
               </button>
-              <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer" className="fynn-btn-ghost">
-                <ExternalLink className="w-3.5 h-3.5" /> OpenRouter-sleutel ophalen
-              </a>
+              {activeProvider === 'anthropic' ? (
+                <a href="https://platform.claude.com/settings/keys" target="_blank" rel="noopener noreferrer" className="fynn-btn-ghost">
+                  <ExternalLink className="w-3.5 h-3.5" /> Anthropic-sleutel ophalen
+                </a>
+              ) : (
+                <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer" className="fynn-btn-ghost">
+                  <ExternalLink className="w-3.5 h-3.5" /> OpenRouter-sleutel ophalen
+                </a>
+              )}
             </div>
           </div>
 
@@ -421,8 +488,8 @@ function SettingsContent({ shopId }: { shopId: string }) {
             ))}
           </div>
 
-          {/* Model list */}
-          <div className="fynn-card p-[22px] mb-[18px]">
+          {/* Model list (OpenRouter only) */}
+          {activeProvider === 'openrouter' && <div className="fynn-card p-[22px] mb-[18px]">
             <CardTitle icon={Sparkles} color="var(--fyn-purple)">Alle OpenRouter-modellen</CardTitle>
             <div className="fynn-hint -mt-2 mb-3">
               {live
@@ -431,7 +498,7 @@ function SettingsContent({ shopId }: { shopId: string }) {
             </div>
             <ModelBrowser models={models} selected={values.openrouter_model ?? defaultModel}
               onSelect={id => setValues(v => ({ ...v, openrouter_model: id }))} />
-          </div>
+          </div>}
 
           {/* Etsy setup guide */}
           <div className="fynn-card p-[22px]">

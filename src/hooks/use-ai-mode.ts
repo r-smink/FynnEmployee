@@ -7,6 +7,7 @@ export type AiMode = 'live' | 'demo'
 interface AiModeState {
   mode: AiMode
   hasApiKey: boolean
+  provider: 'openrouter' | 'anthropic'
   etsyConnected: boolean
   printfulConnected: boolean
   lastAiTaskAt: string | null
@@ -19,7 +20,7 @@ export const SETTINGS_CHANGED_EVENT = 'fynn:settings-changed'
 
 export function useAiMode() {
   const [state, setState] = useState<AiModeState>({
-    mode: 'demo', hasApiKey: false, etsyConnected: false, printfulConnected: false, lastAiTaskAt: null,
+    mode: 'demo', hasApiKey: false, provider: 'openrouter', etsyConnected: false, printfulConnected: false, lastAiTaskAt: null,
   })
   const [loaded, setLoaded] = useState(false)
 
@@ -27,6 +28,7 @@ export function useAiMode() {
       setState({
         mode: data.ai_mode === 'demo' ? 'demo' : 'live',
         hasApiKey: data.has_api_key === 'true',
+        provider: data.ai_provider === 'anthropic' ? 'anthropic' : 'openrouter',
         etsyConnected: data.etsy_connected === 'true',
         printfulConnected: data.printful_connected === 'true',
         lastAiTaskAt: data.last_ai_task_at ?? null,
@@ -59,7 +61,7 @@ export function useAiMode() {
     } catch {}
   }, [])
 
-  // Live only does real AI work when an OpenRouter key is configured
+  // Live only does real AI work when a key for the chosen provider is configured
   const live = state.mode === 'live' && state.hasApiKey
   // Demo figures (example orders, revenue) are only shown once we know we're not live
   const showDemoData = loaded && !live

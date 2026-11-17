@@ -18,7 +18,7 @@ interface Check {
 
 // Next to the AI Live switch: shows what is really connected, so "live" is never just a label
 export function LiveStatus() {
-  const { live, etsyConnected, printfulConnected, lastAiTaskAt, refresh } = useAiMode()
+  const { live, provider, etsyConnected, printfulConnected, lastAiTaskAt, refresh } = useAiMode()
   const [open, setOpen] = useState(false)
   const shopId = usePathname()?.match(/^\/shops\/([^/]+)/)?.[1]
 
@@ -26,7 +26,7 @@ export function LiveStatus() {
 
   const checks: Check[] = [
     {
-      label: 'AI (OpenRouter)', ok: true,
+      label: `AI (${provider === 'anthropic' ? 'Anthropic' : 'OpenRouter'})`, ok: true,
       okText: lastAiTaskAt
         ? `Laatste echte AI-taak ${formatDistanceToNow(parseDbDate(lastAiTaskAt), { addSuffix: true, locale: nl })}`
         : 'Sleutel ingesteld. De eerste AI-taak volgt binnen een minuut.',

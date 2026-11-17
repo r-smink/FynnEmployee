@@ -40,7 +40,7 @@ export async function POST(request: NextRequest, { params }: Params) {
   if (assignment.length > 2000) return NextResponse.json({ error: 'Een opdracht mag maximaal 2000 tekens zijn' }, { status: 400 })
   const level = [PRIORITY.normal, PRIORITY.high, PRIORITY.urgent].includes(priority) ? priority : PRIORITY.normal
   if (!isAiEnabled()) {
-    return NextResponse.json({ error: 'Opdrachten werken alleen in AI Live. Vul je OpenRouter-sleutel in bij Instellingen.' }, { status: 409 })
+    return NextResponse.json({ error: 'Opdrachten werken alleen in AI Live. Vul je OpenRouter- of Anthropic-sleutel in bij Instellingen.' }, { status: 409 })
   }
   const agent = get<{ name: string; enabled: number }>('SELECT name, enabled FROM agents WHERE id = ? AND shop_id = ?', agentId, shopId)
   if (!agent) return NextResponse.json({ error: 'Agent niet gevonden' }, { status: 404 })

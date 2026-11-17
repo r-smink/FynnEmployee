@@ -14,7 +14,8 @@ interface TopbarProps {
 
 export function Topbar({ title, subtitle, connected = true, actions }: TopbarProps) {
   const { theme, toggle } = useTheme()
-  const { live, hasApiKey, setMode } = useAiMode()
+  const { live, hasApiKey, provider, setMode } = useAiMode()
+  const providerName = provider === 'anthropic' ? 'Anthropic' : 'OpenRouter'
 
   const toggleKnob = (on: boolean, activeBg: string) => ({
     background: on ? activeBg : 'transparent',
@@ -33,7 +34,7 @@ export function Topbar({ title, subtitle, connected = true, actions }: TopbarPro
       <div role="radiogroup" aria-label="AI-modus" className="flex items-center gap-[3px] h-[34px] p-[3px] rounded-full"
         style={{ background: 'var(--well)', border: '1px solid var(--input-border)' }}>
         <button type="button" role="radio" aria-checked={live} disabled={!hasApiKey} onClick={() => setMode('live')}
-          title={hasApiKey ? 'Agents gebruiken echte AI via OpenRouter' : 'Voeg eerst een OpenRouter-sleutel toe bij Instellingen'}
+          title={hasApiKey ? `Agents gebruiken echte AI via ${providerName}` : `Voeg eerst een ${providerName}-sleutel toe bij Instellingen`}
           className="flex items-center gap-[6px] h-7 px-3 rounded-full text-xs font-bold cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
           style={toggleKnob(live, 'var(--fyn-success)')}>
           <Sparkles className="w-3.5 h-3.5" /> AI Live

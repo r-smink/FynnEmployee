@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSetting, setSetting, getAiMode, hasAiKey, isAiEnabled } from '@/lib/ai'
+import { getSetting, setSetting, getAiMode, hasAiKey, isAiEnabled, getAiProvider } from '@/lib/ai'
 import { getLiveStatus, purgeDemoDataIfLive } from '@/lib/demo-data'
 
 export const dynamic = 'force-dynamic'
@@ -15,6 +15,8 @@ const ALLOWED_KEYS = [
   'etsy_api_key',
   'etsy_api_secret',
   'printful_api_key',
+  'anthropic_api_key',
+  'anthropic_model',
 ]
 
 export async function GET() {
@@ -31,6 +33,7 @@ export async function GET() {
   settings['ai_enabled'] = isAiEnabled() ? 'true' : 'false'
   settings['ai_mode'] = getAiMode()
   settings['has_api_key'] = hasAiKey() ? 'true' : 'false'
+  settings['ai_provider'] = getAiProvider()
   return NextResponse.json({ ...settings, ...getLiveStatus() })
 }
 
