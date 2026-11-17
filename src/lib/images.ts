@@ -1,6 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import { getSetting } from './ai'
+import { sharp, oneAtATime } from './heavy-work'
 
 // Image generation through OpenRouter's Image API (POST /api/v1/images), used by Luna for real designs
 
@@ -30,6 +31,11 @@ export interface ImageModelInfo {
   formats: string[]
   // Style models only copy the look of example images you send; Luna sends text only, so they can't be used
   needsReference: boolean
+  // Can return a see-through background itself (pixel models); otherwise we cut a plain background away
+  transparent: boolean
+  // e.g. ["1K", "2K", "4K"]; empty when the model has one fixed size
+  resolutions: string[]
+  qualities: string[]
 }
 
 interface OpenRouterImageModel {
@@ -39,8 +45,13 @@ interface OpenRouterImageModel {
   supported_parameters?: {
     output_format?: { values?: string[] }
     input_references?: { min?: number }
+    background?: { values?: string[] }
+    resolution?: { values?: string[] }
+    quality?: { values?: string[] }
   }
 }
+
+export const isVectorModel = (m: Pick<ImageModelInfo, 'formats'>) => m.formats.length > 0 && m.formats.every(f => f === 'svg')
 
 const MODELS_CACHE_MS = 60 * 60 * 1000
 const modelCache = globalThis as unknown as { __fynnImageModels?: { at: number; models: ImageModelInfo[] } }
@@ -61,6 +72,9 @@ export async function loadImageModels(): Promise<ImageModelInfo[]> {
       created: m.created,
       formats: m.supported_parameters?.output_format?.values ?? [],
       needsReference: (m.supported_parameters?.input_references?.min ?? 0) > 0,
+      transparent: !!m.supported_parameters?.background?.values?.includes('transparent'),
+      resolutions: m.supported_parameters?.resolution?.values ?? [],
+      qualities: m.supported_parameters?.quality?.values ?? [],
     }))
     .sort((a, b) => a.provider.localeCompare(b.provider) || b.created - a.created)
   modelCache.__fynnImageModels = { at: Date.now(), models }
@@ -82,10 +96,28 @@ export interface GeneratedImage {
   cost: number | null // USD, when OpenRouter reports it
 }
 
+// Pixel output for print: largest size, PNG (keeps transparency), see-through background, best normal quality.
+// Only parameters the model lists are sent; unknown models get the plain request.
+const RESOLUTION_ORDER = ['4K', '2K', '1.5K', '1K', '768', '512']
+const QUALITY_ORDER = ['high', 'medium', 'auto']
+
+function printOptions(info: ImageModelInfo | undefined): Record<string, string> {
+  if (!info || isVectorModel(info)) return {}
+  const options: Record<string, string> = {}
+  const resolution = RESOLUTION_ORDER.find(r => info.resolutions.includes(r))
+  if (resolution) options.resolution = resolution
+  if (info.formats.includes('png')) options.output_format = 'png'
+  if (info.transparent) options.background = 'transparent'
+  const quality = QUALITY_ORDER.find(q => info.qualities.includes(q))
+  if (quality) options.quality = quality
+  return options
+}
+
 export async function generateImage(prompt: string, aspectRatio = '1:1'): Promise<GeneratedImage> {
   const apiKey = getSetting('openrouter_api_key')
   if (!apiKey) throw new Error('Geen OpenRouter-sleutel ingesteld')
   const model = getImageModel()
+  const info = (await loadImageModels().catch(imageModelCache)).find(m => m.id === model)
 
   const res = await fetch('https://openrouter.ai/api/v1/images', {
     method: 'POST',
@@ -94,7 +126,7 @@ export async function generateImage(prompt: string, aspectRatio = '1:1'): Promis
       'Content-Type': 'application/json',
       'X-Title': 'FynnEmployee AI Store',
     },
-    body: JSON.stringify({ model, prompt, n: 1, aspect_ratio: aspectRatio }),
+    body: JSON.stringify({ model, prompt, n: 1, aspect_ratio: aspectRatio, ...printOptions(info) }),
     // Image models can take well over a minute
     signal: AbortSignal.timeout(180_000),
   })
@@ -112,6 +144,84 @@ export async function generateImage(prompt: string, aspectRatio = '1:1'): Promis
     mediaType: image.media_type || 'image/png',
     cost: typeof json.usage?.cost === 'number' ? json.usage.cost : null,
   }
+}
+
+// ─── Background removal ───────────────────────────────────
+
+// Mask is worked out at this size and scaled up, so a 4K image doesn't need hundreds of MB
+const MASK_SIZE = 2048
+// How far (RGB distance) a pixel may be from the background colour and still count as background
+const BG_TOLERANCE = 42
+
+export interface BackgroundResult {
+  image: GeneratedImage
+  // 'kept': already transparent or no plain background found; 'removed': we cut it away
+  outcome: 'kept' | 'removed'
+}
+
+// Pixel models without a transparent option usually draw the artwork on a plain (often white) background,
+// which would print as a coloured block. Cut away the plain colour that touches the edges; enclosed areas stay.
+export function removePlainBackground(image: GeneratedImage): Promise<BackgroundResult> {
+  if (image.mediaType === 'image/svg+xml') return Promise.resolve({ image, outcome: 'kept' })
+  return oneAtATime(async () => {
+    const { width: W = 0, height: H = 0 } = await sharp(image.data).metadata()
+    if (!W || !H) return { image, outcome: 'kept' as const }
+    const scale = Math.min(1, MASK_SIZE / Math.max(W, H))
+    const w = Math.max(1, Math.round(W * scale))
+    const h = Math.max(1, Math.round(H * scale))
+    const { data } = await sharp(image.data).ensureAlpha().resize(w, h, { fit: 'fill' }).raw().toBuffer({ resolveWithObject: true })
+
+    const border: number[] = []
+    for (let x = 0; x < w; x++) border.push(x, (h - 1) * w + x)
+    for (let y = 1; y < h - 1; y++) border.push(y * w, y * w + w - 1)
+
+    // Already see-through at the edges: the model did it itself
+    if (border.filter(i => data[i * 4 + 3] < 128).length > border.length / 2) return { image, outcome: 'kept' as const }
+
+    // The most common edge colour is the background, but only if it clearly dominates (not a full scene)
+    const buckets = new Map<number, number[]>()
+    for (const i of border) {
+      const key = (data[i * 4] >> 4) << 8 | (data[i * 4 + 1] >> 4) << 4 | data[i * 4 + 2] >> 4
+      const list = buckets.get(key)
+      if (list) list.push(i)
+      else buckets.set(key, [i])
+    }
+    const top = [...buckets.values()].sort((a, b) => b.length - a.length)[0]
+    if (!top || top.length < border.length * 0.6) return { image, outcome: 'kept' as const }
+    const bg = [0, 1, 2].map(c => top.reduce((s, i) => s + data[i * 4 + c], 0) / top.length)
+
+    const isBg = (i: number) => {
+      const dr = data[i * 4] - bg[0], dg = data[i * 4 + 1] - bg[1], db = data[i * 4 + 2] - bg[2]
+      return dr * dr + dg * dg + db * db <= BG_TOLERANCE * BG_TOLERANCE
+    }
+
+    // Flood fill from the edges
+    const mask = Buffer.alloc(w * h, 255)
+    const queue = new Int32Array(w * h)
+    let head = 0, tail = 0
+    for (const i of border) {
+      if (mask[i] && isBg(i)) { mask[i] = 0; queue[tail++] = i }
+    }
+    while (head < tail) {
+      const i = queue[head++]
+      const x = i % w
+      for (const n of [x > 0 ? i - 1 : -1, x < w - 1 ? i + 1 : -1, i - w, i + w]) {
+        if (n >= 0 && n < w * h && mask[n] && isBg(n)) { mask[n] = 0; queue[tail++] = n }
+      }
+    }
+    // Nothing (or everything) matched: leave the image alone rather than ruin it
+    if (tail < w * h * 0.02 || tail > w * h * 0.98) return { image, outcome: 'kept' as const }
+
+    const alpha = await sharp(mask, { raw: { width: w, height: h, channels: 1 } })
+      // extractChannel: sharp otherwise turns the one-channel mask into three channels when resizing
+      .resize(W, H, { fit: 'fill' }).blur(0.6).extractChannel(0).raw().toBuffer()
+    // Two steps: in one pipeline sharp runs removeAlpha after joinChannel and drops the new mask again
+    const rgb = await sharp(image.data).removeAlpha().raw().toBuffer()
+    const png = await sharp(rgb, { raw: { width: W, height: H, channels: 3 } })
+      .joinChannel(alpha, { raw: { width: W, height: H, channels: 1 } })
+      .png().toBuffer()
+    return { image: { ...image, data: png, mediaType: 'image/png' }, outcome: 'removed' as const }
+  })
 }
 
 // ─── Quality check ────────────────────────────────────────

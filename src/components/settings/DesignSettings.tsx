@@ -3,6 +3,7 @@
 import { useEffect, useId, useState } from 'react'
 import { Palette, Check, Loader2, ExternalLink } from 'lucide-react'
 import { useModels } from '@/hooks/use-models'
+import type { ImageModelInfo } from '@/app/api/models/route'
 
 const DEFAULT_LIMIT = '5'
 
@@ -28,8 +29,22 @@ export function DesignSettings() {
   const selected = imageModels.find(m => m.id === model.trim())
   // Style models need example images, which Luna doesn't send; they are left out of the suggestions
   const usable = imageModels.filter(m => !m.needsReference)
-  const vector = usable.filter(m => m.formats.includes('svg')).slice(0, 6)
+  const isVector = (m: ImageModelInfo) => m.formats.length > 0 && m.formats.every(f => f === 'svg')
+  const vector = usable.filter(isVector).slice(0, 6)
+  // Text-to-image (pixel) models; the ones that can deliver a see-through background are best for print
+  const pixel = usable.filter(m => !isVector(m))
+    .sort((a, b) => Number(b.transparent) - Number(a.transparent) || b.created - a.created)
+    .slice(0, 8)
   const unusable = !!selected?.needsReference
+  const bestResolution = (m: ImageModelInfo) => ['4K', '2K', '1.5K', '1K'].find(r => m.resolutions.includes(r))
+
+  const chip = (m: ImageModelInfo) => (
+    <button key={m.id} type="button" onClick={() => setModel(m.id)} title={m.id}
+      className="px-2.5 py-1 rounded-full text-[11px] font-semibold cursor-pointer"
+      style={{ background: model.trim() === m.id ? 'rgba(143,57,172,.18)' : 'var(--well)', border: '1px solid var(--well-border)', color: model.trim() === m.id ? 'var(--fyn-purple)' : 'var(--text-m)' }}>
+      {m.name}{!isVector(m) && m.transparent && ' ✦'}
+    </button>
+  )
 
   const save = async () => {
     setSaving(true)
@@ -70,25 +85,37 @@ export function DesignSettings() {
         {unusable
           ? <span style={{ color: '#dc2626' }}><b>{selected!.name}</b> werkt niet voor Luna: dit stijlmodel heeft verplicht een voorbeeldafbeelding nodig. Kies een ander model.</span>
           : selected
-          ? <span><b style={{ color: 'var(--text-b)' }}>{selected.name}</b>{selected.formats.includes('svg') ? ' · vector (SVG), schaalbaar voor print' : ' · pixelafbeelding'}</span>
+          ? <span><b style={{ color: 'var(--text-b)' }}>{selected.name}</b>
+              {isVector(selected)
+                ? ' · vector (SVG), schaalbaar voor print'
+                : <>
+                    {' · pixelafbeelding'}{bestResolution(selected) && ` tot ${bestResolution(selected)}`}
+                    {selected.transparent
+                      ? ' · levert zelf een transparante achtergrond'
+                      : ' · effen achtergrond wordt automatisch weggeknipt'}
+                  </>}
+            </span>
           : model.trim() && imageModels.length > 0
             ? <span style={{ color: '#d97706' }}>Onbekend beeldmodel op OpenRouter, controleer de ID</span>
             : `${imageModels.length} beeldmodellen beschikbaar`}
       </div>
       {vector.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mt-2 mb-4">
-          {vector.map(m => (
-            <button key={m.id} type="button" onClick={() => setModel(m.id)} title={m.id}
-              className="px-2.5 py-1 rounded-full text-[11px] font-semibold cursor-pointer"
-              style={{ background: model.trim() === m.id ? 'rgba(143,57,172,.18)' : 'var(--well)', border: '1px solid var(--well-border)', color: model.trim() === m.id ? 'var(--fyn-purple)' : 'var(--text-m)' }}>
-              {m.name}
-            </button>
-          ))}
-        </div>
+        <>
+          <div className="text-[11px] font-bold uppercase tracking-wide mt-3 mb-1.5" style={{ color: 'var(--text-s)' }}>Vector (strak, oneindig schaalbaar)</div>
+          <div className="flex flex-wrap gap-1.5">{vector.map(chip)}</div>
+        </>
       )}
+      {pixel.length > 0 && (
+        <>
+          <div className="text-[11px] font-bold uppercase tracking-wide mt-3 mb-1.5" style={{ color: 'var(--text-s)' }}>Tekst-naar-beeld (foto&apos;s, schilderijen, gedetailleerde illustraties)</div>
+          <div className="flex flex-wrap gap-1.5">{pixel.map(chip)}</div>
+          <div className="fynn-hint mt-1.5">✦ = kan zelf een transparante achtergrond leveren. Luna vraagt altijd de hoogste resolutie die het model aankan.</div>
+        </>
+      )}
+      <div className="mb-4" />
 
       <label className="fynn-label">Maximaal aantal ontwerpen per dag</label>
-      <div className="fynn-hint">Elk ontwerp kost OpenRouter-tegoed (Recraft V4 Vector: $0,08 per stuk). Zet op 0 om beeldontwerpen uit te zetten.</div>
+      <div className="fynn-hint">Elk ontwerp kost OpenRouter-tegoed (Recraft V4 Vector: $0,08 per stuk; pixelmodellen in hoge resolutie kunnen duurder zijn). Zet op 0 om beeldontwerpen uit te zetten.</div>
       <input className="fynn-inp" type="number" min={0} max={50} value={limit} onChange={e => setLimit(e.target.value)} style={{ maxWidth: 140 }} />
 
       <label className="flex items-start gap-2.5 mt-4 cursor-pointer text-[13px]" style={{ color: 'var(--text-b)' }}>

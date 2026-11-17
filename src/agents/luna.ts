@@ -3,7 +3,7 @@ import { BaseAgent } from './base-agent'
 import { askAi, isAiEnabled } from '@/lib/ai'
 import { get, run } from '@/lib/db'
 import {
-  generateImage, checkDesign, saveDesign, getImageModel, getDailyDesignLimit, imageModelProblem, MAX_DESIGNS_IN_REVIEW,
+  generateImage, removePlainBackground, checkDesign, saveDesign, getImageModel, getDailyDesignLimit, imageModelProblem, MAX_DESIGNS_IN_REVIEW,
 } from '@/lib/images'
 import { pickTheme, findTheme, activeThemes } from '@/lib/theme-store'
 import { isSeasonal, formatMonthDay, type DesignTheme } from '@/lib/themes'
@@ -106,10 +106,16 @@ Keep responses under 200 words. Be creative and market-aware.`
     const model = getImageModel()
     this.log(`${model} tekent "${brief.title}"...`, 'thinking', task.id)
     this.updateProgress(task.id, 35, 'Beeldmodel tekent het ontwerp...')
-    const image = await generateImage(
+    const generated = await generateImage(
       `${brief.prompt}. Print-ready artwork for a ${product}. Isolated, centered on a plain transparent background, ` +
+      '(if transparency is not possible: a single flat solid white background with no shadows or texture), ' +
       'no mockup, no text, no letters, no watermark, no logos or trademarks.'
     )
+
+    // Pixel models often ignore "transparent"; cut a plain background away so it doesn't print as a block
+    this.updateProgress(task.id, 65, 'Achtergrond controleren...')
+    const { image, outcome } = await removePlainBackground(generated)
+    if (outcome === 'removed') this.log('Effen achtergrond weggehaald, zodat alleen het ontwerp wordt geprint', 'info', task.id)
 
     this.updateProgress(task.id, 75, 'Kwaliteitscontrole...')
     const check = checkDesign(image)
